@@ -53,23 +53,20 @@ router.post('/start', authenticateToken, async (req: Request, res: Response) => 
 
     // Get existing chat messages for this assessment ONLY (strictly filter by assessment_id)
     // Never mix messages from different assessments
-    let existingMessages = assessment
-      ? await prisma.chatMessage.findMany({
-          where: {
-            user_id: userId,
-            assessment_id: assessment.id, // Use assessment.id to ensure we get messages for THIS assessment only
-          },
-          orderBy: { created_at: 'asc' },
-          take: 50,
-        })
-      : await prisma.chatMessage.findMany({
-          where: {
-            user_id: userId,
-            assessment_id: null, // Only non-assessment-specific chats
-          },
-          orderBy: { created_at: 'asc' },
-          take: 50,
-        });
+    // IMPORTANT: If no assessmentId is provided, don't load any old messages - start fresh
+    let existingMessages: any[] = [];
+    if (assessment) {
+      // Only load messages if we have a specific assessment
+      existingMessages = await prisma.chatMessage.findMany({
+        where: {
+          user_id: userId,
+          assessment_id: assessment.id, // Use assessment.id to ensure we get messages for THIS assessment only
+        },
+        orderBy: { created_at: 'asc' },
+        take: 50,
+      });
+    }
+    // If no assessment, don't load any old messages - start with a clean chat session
 
     // IMPORTANT: Double-check database to prevent race conditions
     // Even if existingMessages is empty, check if an initial message exists in the database

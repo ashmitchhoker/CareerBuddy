@@ -146,7 +146,7 @@ export function AssessmentHistoryPage({
         const response = await assessmentService.getHistory();
         const data = response.data;
         if (data.completed_assessments) {
-          const testFlow: TestType[] = ['aptitude', 'values', 'personal'];
+          const testFlow: TestType[] = ['riasec', 'values', 'personal'];
           const assessments = data.completed_assessments
             .map((a: any) => ({
               id: a.id,

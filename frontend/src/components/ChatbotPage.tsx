@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { ArrowLeft, Send, Bot, User, AlertCircle, Trash2 } from "lucide-react";
+import { ArrowLeft, Send, Bot, User, AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import { Card } from "./ui/card";
@@ -96,8 +96,6 @@ export function ChatbotPage({
   const [isTyping, setIsTyping] = useState(false);
   const [sessionId, setSessionId] = useState<string>(`session_${Date.now()}`);
   const [isInitializing, setIsInitializing] = useState(true);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const createLocalInitialMessage = (text?: string): Message => ({
@@ -122,10 +120,23 @@ export function ChatbotPage({
       if (assessmentId) {
         console.log(`[ChatbotPage] Initializing chat for assessment ID: ${assessmentId}`);
       } else {
-        console.log('[ChatbotPage] Initializing general chat (no assessment ID)');
+        console.log('[ChatbotPage] Initializing general chat (no assessment ID) - starting fresh');
       }
       
       try {
+        // IMPORTANT: Only load existing messages if we have a specific assessmentId
+        // If no assessmentId, start with a clean chat session (no old messages)
+        // This prevents showing random chat history when clicking "Talk with Career Guide"
+        if (!assessmentId) {
+          // No assessmentId = general chat, start fresh with no old messages
+          console.log('[ChatbotPage] No assessmentId provided - starting fresh chat session');
+          if (isMounted) {
+            setMessages([createLocalInitialMessage()]);
+            setIsInitializing(false);
+          }
+          return;
+        }
+        
         // If we have results and assessmentId, try to load existing messages first
         // This avoids regenerating messages that already exist and makes "View Results" instant
         // IMPORTANT: Only load messages for THIS specific assessmentId
@@ -354,41 +365,6 @@ export function ChatbotPage({
     }
   };
 
-  const handleDeleteChat = async () => {
-    if (!assessmentId) return;
-    
-    setIsDeleting(true);
-    try {
-      await assessmentService.deleteChatHistory(assessmentId);
-      toast.success('Chat history deleted successfully');
-      setMessages([]);
-      setSessionId(`session_${Date.now()}`);
-      // Reload chat to show initial message
-      const response = await assessmentService.startChat({
-        sessionId: `session_${Date.now()}`,
-        assessmentId: assessmentId,
-        assessmentSummary: assessmentSummaryForChat || undefined,
-        language: userProfile.language,
-      });
-      const data = response.data;
-      if (data.initialMessage?.reply) {
-        setMessages([{
-          id: `initial-${Date.now()}-${Math.random()}`,
-          text: data.initialMessage.reply,
-          sender: 'bot' as const,
-          timestamp: new Date(),
-        }]);
-      } else {
-        setMessages([createLocalInitialMessage()]);
-      }
-      setShowDeleteDialog(false);
-    } catch (error: any) {
-      console.error('Error deleting chat history:', error);
-      toast.error('Failed to delete chat history');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -424,48 +400,9 @@ export function ChatbotPage({
               language={userProfile.language}
               onLanguageChange={handleLanguageChange}
             />
-            {assessmentId && messages.length > 0 && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowDeleteDialog(true)}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                title="Delete chat history"
-              >
-                <Trash2 className="h-5 w-5" />
-              </Button>
-            )}
           </div>
         </div>
       </header>
-
-      {/* Delete Chat Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Chat History</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete all messages in this chat? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteDialog(false)}
-              disabled={isDeleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteChat}
-              disabled={isDeleting}
-            >
-              {isDeleting ? 'Deleting...' : 'Delete'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Chat Messages */}
       <main className="flex-1 overflow-y-auto bg-gradient-to-br from-blue-50 via-white to-purple-50">

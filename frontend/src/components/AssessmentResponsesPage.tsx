@@ -19,7 +19,7 @@ const translations = {
     title: 'Assessment Responses',
     subtitle: 'Review your selected options',
     backToHistory: 'Back to History',
-    aptitudeTest: 'Aptitude Test',
+    riasecTest: 'RIASEC Personality Test',
     valuesTest: 'Values & Motivation Test',
     personalTest: 'Personal Information',
     noData: 'Options selected will appear here',
@@ -29,7 +29,7 @@ const translations = {
     title: 'मूल्यांकन प्रतिक्रियाएं',
     subtitle: 'अपने चयनित विकल्पों की समीक्षा करें',
     backToHistory: 'इतिहास पर वापस जाएं',
-    aptitudeTest: 'योग्यता परीक्षा',
+    riasecTest: 'RIASEC व्यक्तित्व परीक्षा',
     valuesTest: 'मूल्य और प्रेरणा परीक्षा',
     personalTest: 'व्यक्तिगत जानकारी',
     noData: 'चयनित विकल्प यहां दिखाई देंगे',
@@ -39,7 +39,7 @@ const translations = {
     title: 'అసెస్‌మెంట్ ప్రతిస్పందనలు',
     subtitle: 'మీరు ఎంచుకున్న ఎంపికలను సమీక్షించండి',
     backToHistory: 'చరిత్రకు తిరిగి వెళ్ళు',
-    aptitudeTest: 'ఆప్టిట్యూడ్ పరీక్ష',
+    riasecTest: 'RIASEC వ్యక్తిత్వ పరీక్ష',
     valuesTest: 'విలువలు మరియు ప్రేరణ పరీక్ష',
     personalTest: 'వ్యక్తిగత సమాచారం',
     noData: 'ఎంచుకున్న ఎంపికలు ఇక్కడ కనిపిస్తాయి',
@@ -49,7 +49,7 @@ const translations = {
     title: 'மதிப்பீட்டு பதில்கள்',
     subtitle: 'தேர்ந்தெடுத்த விருப்பங்களை மதிப்பாய்வு செய்யவும்',
     backToHistory: 'வரலாற்றுக்குத் திரும்பு',
-    aptitudeTest: 'திறன் தேர்வு',
+    riasecTest: 'RIASEC ஆளுமை தேர்வு',
     valuesTest: 'மதிப்புகள் மற்றும் உந்துதல் தேர்வு',
     personalTest: 'தனிப்பட்ட தகவல்',
     noData: 'தேர்ந்தெடுத்த விருப்பங்கள் இங்கே தோன்றும்',
@@ -59,7 +59,7 @@ const translations = {
     title: 'মূল্যায়ন প্রতিক্রিয়া',
     subtitle: 'আপনার নির্বাচিত বিকল্পগুলি পর্যালোচনা করুন',
     backToHistory: 'ইতিহাসে ফিরে যান',
-    aptitudeTest: 'যোগ্যতা পরীক্ষা',
+    riasecTest: 'RIASEC ব্যক্তিত্ব পরীক্ষা',
     valuesTest: 'মূল্যবোধ এবং প্রেরণা পরীক্ষা',
     personalTest: 'ব্যক্তিগত তথ্য',
     noData: 'নির্বাচিত বিকল্পগুলি এখানে প্রদর্শিত হবে',
@@ -69,7 +69,7 @@ const translations = {
     title: 'મૂલ્યાંકન પ્રતિસાદ',
     subtitle: 'તમારા પસંદ કરેલ વિકલ્પોની સમીક્ષા કરો',
     backToHistory: 'ઇતિહાસ પર પાછા જાઓ',
-    aptitudeTest: 'યોગ્યતા પરીક્ષા',
+    riasecTest: 'RIASEC વ્યક્તિત્વ પરીક્ષા',
     valuesTest: 'મૂલ્યો અને પ્રેરણા પરીક્ષા',
     personalTest: 'વ્યક્તિગત માહિતી',
     noData: 'પસંદ કરેલા વિકલ્પો અહીં દેખાશે',
@@ -117,15 +117,15 @@ export function AssessmentResponsesPage({
   }, [assessmentId]);
 
   const testSections = [
-    { id: 'aptitude', title: t.aptitudeTest, icon: ClipboardList },
+    { id: 'riasec', title: t.riasecTest, icon: ClipboardList },
     { id: 'values', title: t.valuesTest, icon: ClipboardList },
     { id: 'personal', title: t.personalTest, icon: ClipboardList }
   ];
 
   const getTestTitle = (testType: string) => {
     switch (testType) {
-      case 'aptitude':
-        return t.aptitudeTest;
+      case 'riasec':
+        return t.riasecTest;
       case 'values':
         return t.valuesTest;
       case 'personal':

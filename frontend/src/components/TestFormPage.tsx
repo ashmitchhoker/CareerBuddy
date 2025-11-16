@@ -35,6 +35,7 @@ interface TestFormPageProps {
   completeTest: (testType: TestType) => void;
   currentTestIndex: number;
   totalTests: number;
+  assessmentId?: number;
   onTestComplete?: (
     testType: TestType,
     answers: { [key: number]: string | string[] }
@@ -63,6 +64,632 @@ const commonOptions = {
 };
 
 const testQuestions = {
+  riasec: [
+    {
+      id: 1,
+      question: {
+        en: "Do you prefer structured, organized work environments?",
+        hi: "क्या आप संरचित, व्यवस्थित कार्य वातावरण पसंद करते हैं?",
+        te: "మీరు నిర్మాణాత్మక, వ్యవస్థీకృత పని వాతావరణాలను ఇష్టపడతారా?",
+        ta: "நீங்கள் கட்டமைக்கப்பட்ட, ஒழுங்கமைக்கப்பட்ட பணி சூழல்களை விரும்புகிறீர்களா?",
+        bn: "আপনি কি কাঠামোবদ্ধ, সংগঠিত কাজের পরিবেশ পছন্দ করেন?",
+        gu: "શું તમે સંગઠિત, વ્યવસ્થિત કાર્ય વાતાવરણ પસંદ કરો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "C",
+    },
+    {
+      id: 2,
+      question: {
+        en: "Are you good at listening to and empathizing with others?",
+        hi: "क्या आप दूसरों को सुनने और उनके साथ सहानुभूति रखने में अच्छे हैं?",
+        te: "మీరు ఇతరులను వినడం మరియు వారితో సానుభూతి చూపడంలో మంచివారా?",
+        ta: "நீங்கள் மற்றவர்களைக் கேட்டு அவர்களுடன் பச்சாதாபம் கொள்வதில் நல்லவரா?",
+        bn: "আপনি কি অন্যদের শোনা এবং তাদের সাথে সহানুভূতি দেখাতে ভাল?",
+        gu: "શું તમે અન્ય લોકોને સાંભળવામાં અને તેમની સાથે સહાનુભૂતિ દર્શાવવામાં સારા છો?",
+      },
+      options: commonOptions,
+      riasecCode: "S",
+    },
+    {
+      id: 3,
+      question: {
+        en: "Are you good at selling ideas or products?",
+        hi: "क्या आप विचारों या उत्पादों को बेचने में अच्छे हैं?",
+        te: "మీరు ఆలోచనలు లేదా ఉత్పత్తులను విక్రయించడంలో మంచివారా?",
+        ta: "நீங்கள் கருத்துக்கள் அல்லது தயாரிப்புகளை விற்பனை செய்வதில் நல்லவரா?",
+        bn: "আপনি কি ধারণা বা পণ্য বিক্রি করতে ভাল?",
+        gu: "શું તમે વિચારો અથવા ઉત્પાદનો વેચવામાં સારા છો?",
+      },
+      options: commonOptions,
+      riasecCode: "E",
+    },
+    {
+      id: 4,
+      question: {
+        en: "Do you like working as part of a team?",
+        hi: "क्या आपको टीम के हिस्से के रूप में काम करना पसंद है?",
+        te: "మీరు జట్టులో భాగంగా పని చేయడం ఇష్టపడతారా?",
+        ta: "நீங்கள் ஒரு குழுவின் ஒரு பகுதியாக வேலை செய்வதை விரும்புகிறீர்களா?",
+        bn: "আপনি কি দলের অংশ হিসেবে কাজ করতে পছন্দ করেন?",
+        gu: "શું તમને ટીમના ભાગ તરીકે કામ કરવું ગમે છે?",
+      },
+      options: commonOptions,
+      riasecCode: "S",
+    },
+    {
+      id: 5,
+      question: {
+        en: "Do you like following established rules and procedures?",
+        hi: "क्या आपको स्थापित नियमों और प्रक्रियाओं का पालन करना पसंद है?",
+        te: "మీరు స్థాపించబడిన నియమాలు మరియు విధానాలను అనుసరించడం ఇష్టపడతారా?",
+        ta: "நீங்கள் நிறுவப்பட்ட விதிகள் மற்றும் நடைமுறைகளைப் பின்பற்றுவதை விரும்புகிறீர்களா?",
+        bn: "আপনি কি প্রতিষ্ঠিত নিয়ম এবং পদ্ধতি অনুসরণ করতে পছন্দ করেন?",
+        gu: "શું તમને સ્થાપિત નિયમો અને પ્રક્રિયાઓનું પાલન કરવું ગમે છે?",
+      },
+      options: commonOptions,
+      riasecCode: "C",
+    },
+    {
+      id: 6,
+      question: {
+        en: "Are you naturally persuasive and influential?",
+        hi: "क्या आप स्वाभाविक रूप से प्रेरक और प्रभावशाली हैं?",
+        te: "మీరు సహజంగా ఒప్పించే మరియు ప్రభావితం చేసే వ్యక్తిగా ఉన్నారా?",
+        ta: "நீங்கள் இயற்கையாகவே வற்புறுத்தும் மற்றும் செல்வாக்கு செலுத்துபவரா?",
+        bn: "আপনি কি স্বাভাবিকভাবে প্ররোচনামূলক এবং প্রভাবশালী?",
+        gu: "શું તમે કુદરતી રીતે પ્રેરક અને પ્રભાવશાળી છો?",
+      },
+      options: commonOptions,
+      riasecCode: "E",
+    },
+    {
+      id: 7,
+      question: {
+        en: "Would you like a career focused on helping people?",
+        hi: "क्या आप लोगों की मदद पर केंद्रित करियर चाहेंगे?",
+        te: "మీరు ప్రజలకు సహాయం చేయడంపై దృష్టి సారించిన కెరీర్ కోరుకుంటారా?",
+        ta: "நீங்கள் மக்களுக்கு உதவுவதில் கவனம் செலுத்தும் தொழிலை விரும்புகிறீர்களா?",
+        bn: "আপনি কি মানুষের সাহায্যের উপর ফোকাস করা একটি ক্যারিয়ার চান?",
+        gu: "શું તમે લોકોની મદદ પર ધ્યાન કેન્દ્રિત કરતી કારકિર્દી ઇચ્છો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "S",
+    },
+    {
+      id: 8,
+      question: {
+        en: "Do you like being in positions of authority or responsibility?",
+        hi: "क्या आपको अधिकार या जिम्मेदारी की स्थिति में रहना पसंद है?",
+        te: "మీరు అధికారం లేదా బాధ్యత స్థానాలలో ఉండడం ఇష్టపడతారా?",
+        ta: "நீங்கள் அதிகாரம் அல்லது பொறுப்பு நிலைகளில் இருக்க விரும்புகிறீர்களா?",
+        bn: "আপনি কি কর্তৃত্ব বা দায়িত্বের পদে থাকতে পছন্দ করেন?",
+        gu: "શું તમને સત્તા અથવા જવાબદારીની સ્થિતિમાં રહેવું ગમે છે?",
+      },
+      options: commonOptions,
+      riasecCode: "E",
+    },
+    {
+      id: 9,
+      question: {
+        en: "Are you good at understanding and analyzing data?",
+        hi: "क्या आप डेटा को समझने और विश्लेषण करने में अच्छे हैं?",
+        te: "మీరు డేటాను అర్థం చేసుకోవడం మరియు విశ్లేషించడంలో మంచివారా?",
+        ta: "நீங்கள் தரவைப் புரிந்துகொண்டு பகுப்பாய்வு செய்வதில் நல்லவரா?",
+        bn: "আপনি কি ডেটা বুঝতে এবং বিশ্লেষণ করতে ভাল?",
+        gu: "શું તમે ડેટાને સમજવામાં અને વિશ્લેષણ કરવામાં સારા છો?",
+      },
+      options: commonOptions,
+      riasecCode: "I",
+    },
+    {
+      id: 10,
+      question: {
+        en: "Do you enjoy working toward ambitious goals?",
+        hi: "क्या आप महत्वाकांक्षी लक्ष्यों की दिशा में काम करने का आनंद लेते हैं?",
+        te: "మీరు ప్రతిష్టాత్మక లక్ష్యాల వైపు పని చేయడం ఆనందిస్తారా?",
+        ta: "நீங்கள் லட்சிய இலக்குகளை நோக்கி வேலை செய்வதை ரசிக்கிறீர்களா?",
+        bn: "আপনি কি উচ্চাকাঙ্ক্ষী লক্ষ্যের দিকে কাজ করতে উপভোগ করেন?",
+        gu: "શું તમે મહત્વાકાંક્ષી લક્ષ્યો તરફ કામ કરવાનો આનંદ લો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "E",
+    },
+    {
+      id: 11,
+      question: {
+        en: "Do you like starting new projects or taking initiative?",
+        hi: "क्या आपको नई परियोजनाएं शुरू करना या पहल करना पसंद है?",
+        te: "మీరు కొత్త ప్రాజెక్టులను ప్రారంభించడం లేదా చొరవ తీసుకోవడం ఇష్టపడతారా?",
+        ta: "நீங்கள் புதிய திட்டங்களைத் தொடங்குவதை அல்லது முன்முயற்சி எடுப்பதை விரும்புகிறீர்களா?",
+        bn: "আপনি কি নতুন প্রকল্প শুরু করতে বা উদ্যোগ নিতে পছন্দ করেন?",
+        gu: "શું તમને નવા પ્રોજેક્ટ શરૂ કરવા અથવા પહેલ કરવી ગમે છે?",
+      },
+      options: commonOptions,
+      riasecCode: "E",
+    },
+    {
+      id: 12,
+      question: {
+        en: "Do you like asking questions and investigating things deeply?",
+        hi: "क्या आपको प्रश्न पूछना और चीजों की गहराई से जांच करना पसंद है?",
+        te: "మీరు ప్రశ్నలు అడగడం మరియు విషయాలను లోతుగా పరిశోధించడం ఇష్టపడతారా?",
+        ta: "நீங்கள் கேள்விகள் கேட்டு விஷயங்களை ஆழமாக விசாரிப்பதை விரும்புகிறீர்களா?",
+        bn: "আপনি কি প্রশ্ন জিজ্ঞাসা করতে এবং জিনিসগুলিকে গভীরভাবে তদন্ত করতে পছন্দ করেন?",
+        gu: "શું તમને પ્રશ્નો પૂછવા અને વસ્તુઓની ઊંડાણપૂર્વક તપાસ કરવી ગમે છે?",
+      },
+      options: commonOptions,
+      riasecCode: "I",
+    },
+    {
+      id: 13,
+      question: {
+        en: "Would you enjoy work involving scientific or technical research?",
+        hi: "क्या आप वैज्ञानिक या तकनीकी अनुसंधान से जुड़े काम का आनंद लेंगे?",
+        te: "మీరు శాస్త్రీయ లేదా సాంకేతిక పరిశోధనను కలిగి ఉన్న పనిని ఆనందిస్తారా?",
+        ta: "நீங்கள் அறிவியல் அல்லது தொழில்நுட்ப ஆராய்ச்சியை உள்ளடக்கிய வேலையை ரசிப்பீர்களா?",
+        bn: "আপনি কি বৈজ্ঞানিক বা প্রযুক্তিগত গবেষণা জড়িত কাজ উপভোগ করবেন?",
+        gu: "શું તમે વૈજ્ઞાનિક અથવા તકનીકી સંશોધન સાથે સંકળાયેલા કામનો આનંદ લો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "I",
+    },
+    {
+      id: 14,
+      question: {
+        en: "Are you curious about how things work and why?",
+        hi: "क्या आप इस बारे में उत्सुक हैं कि चीजें कैसे काम करती हैं और क्यों?",
+        te: "మీరు విషయాలు ఎలా పని చేస్తాయి మరియు ఎందుకు అనే దాని గురించి ఆసక్తి కలిగి ఉన్నారా?",
+        ta: "விஷயங்கள் எவ்வாறு செயல்படுகின்றன மற்றும் ஏன் என்பதில் நீங்கள் ஆர்வமாக இருக்கிறீர்களா?",
+        bn: "আপনি কি কিভাবে এবং কেন জিনিস কাজ করে সে সম্পর্কে কৌতূহলী?",
+        gu: "શું તમે વસ્તુઓ કેવી રીતે કામ કરે છે અને શા માટે તે વિશે ઉત્સુક છો?",
+      },
+      options: commonOptions,
+      riasecCode: "I",
+    },
+    {
+      id: 15,
+      question: {
+        en: "Do you prefer working with ideas and concepts?",
+        hi: "क्या आप विचारों और अवधारणाओं के साथ काम करना पसंद करते हैं?",
+        te: "మీరు ఆలోచనలు మరియు భావనలతో పని చేయడాన్ని ఇష్టపడతారా?",
+        ta: "நீங்கள் கருத்துக்கள் மற்றும் கருத்துகளுடன் வேலை செய்வதை விரும்புகிறீர்களா?",
+        bn: "আপনি কি ধারণা এবং ধারণার সাথে কাজ করতে পছন্দ করেন?",
+        gu: "શું તમે વિચારો અને ખ્યાલો સાથે કામ કરવાનું પસંદ કરો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "I",
+    },
+    {
+      id: 16,
+      question: {
+        en: "Do you enjoy solving complex problems and puzzles?",
+        hi: "क्या आप जटिल समस्याओं और पहेलियों को हल करने का आनंद लेते हैं?",
+        te: "మీరు సంక్లిష్ట సమస్యలు మరియు పజిల్‌లను పరిష్కరించడం ఆనందిస్తారా?",
+        ta: "நீங்கள் சிக்கலான பிரச்சனைகள் மற்றும் புதிர்களைத் தீர்ப்பதை ரசிக்கிறீர்களா?",
+        bn: "আপনি কি জটিল সমস্যা এবং ধাঁধা সমাধান করতে উপভোগ করেন?",
+        gu: "શું તમે જટિલ સમસ્યાઓ અને કોયડાઓ ઉકેલવાનો આનંદ લો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "I",
+    },
+    {
+      id: 17,
+      question: {
+        en: "Do you enjoy teaching or training others?",
+        hi: "क्या आप दूसरों को पढ़ाने या प्रशिक्षित करने का आनंद लेते हैं?",
+        te: "మీరు ఇతరులకు బోధించడం లేదా శిక్షణ ఇవ్వడం ఆనందిస్తారా?",
+        ta: "நீங்கள் மற்றவர்களுக்கு கற்பித்தல் அல்லது பயிற்சி அளிப்பதை ரசிக்கிறீர்களா?",
+        bn: "আপনি কি অন্যদের শেখানো বা প্রশিক্ষণ দেওয়া উপভোগ করেন?",
+        gu: "શું તમે અન્ય લોકોને શીખવવા અથવા તાલીમ આપવાનો આનંદ લો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "S",
+    },
+    {
+      id: 18,
+      question: {
+        en: "Are you detail-oriented and careful with accuracy?",
+        hi: "क्या आप विवरण-उन्मुख हैं और सटीकता के साथ सावधान हैं?",
+        te: "మీరు వివరాలపై దృష్టి సారించే మరియు ఖచ్చితత్వంతో జాగ్రత్తగా ఉండే వ్యక్తిగా ఉన్నారా?",
+        ta: "நீங்கள் விவரங்களில் கவனம் செலுத்துபவராகவும் துல்லியத்துடன் கவனமாகவும் இருக்கிறீர்களா?",
+        bn: "আপনি কি বিস্তারিত-ভিত্তিক এবং নির্ভুলতার সাথে সতর্ক?",
+        gu: "શું તમે વિગત-ઉન્મુખ છો અને ચોકસાઈ સાથે સાવધાન છો?",
+      },
+      options: commonOptions,
+      riasecCode: "C",
+    },
+    {
+      id: 19,
+      question: {
+        en: "Do you enjoy research and discovering new information?",
+        hi: "क्या आप अनुसंधान और नई जानकारी की खोज का आनंद लेते हैं?",
+        te: "మీరు పరిశోధన మరియు కొత్త సమాచారాన్ని కనుగొనడం ఆనందిస్తారా?",
+        ta: "நீங்கள் ஆராய்ச்சி மற்றும் புதிய தகவல்களைக் கண்டுபிடிப்பதை ரசிக்கிறீர்களா?",
+        bn: "আপনি কি গবেষণা এবং নতুন তথ্য আবিষ্কার করতে উপভোগ করেন?",
+        gu: "શું તમે સંશોધન અને નવી માહિતી શોધવાનો આનંદ લો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "I",
+    },
+    {
+      id: 20,
+      question: {
+        en: "Do you prefer clear expectations and defined goals?",
+        hi: "क्या आप स्पष्ट अपेक्षाओं और परिभाषित लक्ष्यों को पसंद करते हैं?",
+        te: "మీరు స్పష్టమైన అంచనాలు మరియు నిర్వచించిన లక్ష్యాలను ఇష్టపడతారా?",
+        ta: "நீங்கள் தெளிவான எதிர்பார்ப்புகள் மற்றும் வரையறுக்கப்பட்ட இலக்குகளை விரும்புகிறீர்களா?",
+        bn: "আপনি কি পরিষ্কার প্রত্যাশা এবং সংজ্ঞায়িত লক্ষ্য পছন্দ করেন?",
+        gu: "શું તમે સ્પષ્ટ અપેક્ષાઓ અને વ્યાખ્યાયિત લક્ષ્યો પસંદ કરો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "C",
+    },
+    {
+      id: 21,
+      question: {
+        en: "Are you interested in counseling or helping professions?",
+        hi: "क्या आप परामर्श या सहायता करने वाले व्यवसायों में रुचि रखते हैं?",
+        te: "మీరు సలహా లేదా సహాయక వృత్తులపై ఆసక్తి కలిగి ఉన్నారా?",
+        ta: "நீங்கள் ஆலோசனை அல்லது உதவி செய்யும் தொழில்களில் ஆர்வமாக இருக்கிறீர்களா?",
+        bn: "আপনি কি পরামর্শ বা সাহায্যকারী পেশায় আগ্রহী?",
+        gu: "શું તમે કાઉન્સેલિંગ અથવા મદદ કરતા વ્યવસાયોમાં રુચિ ધરાવો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "S",
+    },
+    {
+      id: 22,
+      question: {
+        en: "Are you good at organizing information and data?",
+        hi: "क्या आप जानकारी और डेटा को व्यवस्थित करने में अच्छे हैं?",
+        te: "మీరు సమాచారం మరియు డేటాను వ్యవస్థీకరించడంలో మంచివారా?",
+        ta: "நீங்கள் தகவல் மற்றும் தரவை ஒழுங்கமைப்பதில் நல்லவரா?",
+        bn: "আপনি কি তথ্য এবং ডেটা সংগঠিত করতে ভাল?",
+        gu: "શું તમે માહિતી અને ડેટાને વ્યવસ્થિત કરવામાં સારા છો?",
+      },
+      options: commonOptions,
+      riasecCode: "C",
+    },
+    {
+      id: 23,
+      question: {
+        en: "Do you prefer working with people over working alone?",
+        hi: "क्या आप अकेले काम करने के बजाय लोगों के साथ काम करना पसंद करते हैं?",
+        te: "మీరు ఒంటరిగా పని చేయడం కంటే ప్రజలతో పని చేయడాన్ని ఇష్టపడతారా?",
+        ta: "நீங்கள் தனியாக வேலை செய்வதை விட மக்களுடன் வேலை செய்வதை விரும்புகிறீர்களா?",
+        bn: "আপনি কি একা কাজ করার চেয়ে মানুষের সাথে কাজ করতে পছন্দ করেন?",
+        gu: "શું તમે એકલા કામ કરવા કરતાં લોકો સાથે કામ કરવાનું પસંદ કરો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "S",
+    },
+    {
+      id: 24,
+      question: {
+        en: "Do you enjoy administrative or office work?",
+        hi: "क्या आप प्रशासनिक या कार्यालय कार्य का आनंद लेते हैं?",
+        te: "మీరు పరిపాలనా లేదా కార్యాలయ పనిని ఆనందిస్తారా?",
+        ta: "நீங்கள் நிர்வாக அல்லது அலுவலக வேலையை ரசிக்கிறீர்களா?",
+        bn: "আপনি কি প্রশাসনিক বা অফিসের কাজ উপভোগ করেন?",
+        gu: "શું તમે વહીવટી અથવા ઓફિસ કામનો આનંદ લો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "C",
+    },
+    {
+      id: 25,
+      question: {
+        en: "Are you good at fixing things or maintaining equipment?",
+        hi: "क्या आप चीजों को ठीक करने या उपकरणों को बनाए रखने में अच्छे हैं?",
+        te: "మీరు విషయాలను సరిచేయడం లేదా పరికరాలను నిర్వహించడంలో మంచివారా?",
+        ta: "நீங்கள் விஷயங்களை சரிசெய்வதில் அல்லது உபகரணங்களை பராமரிப்பதில் நல்லவரா?",
+        bn: "আপনি কি জিনিস ঠিক করতে বা সরঞ্জাম রক্ষণাবেক্ষণ করতে ভাল?",
+        gu: "શું તમે વસ્તુઓને ઠીક કરવામાં અથવા સાધનો જાળવવામાં સારા છો?",
+      },
+      options: commonOptions,
+      riasecCode: "R",
+    },
+    {
+      id: 26,
+      question: {
+        en: "Would you rather work with your hands than your mind?",
+        hi: "क्या आप अपने दिमाग की बजाय अपने हाथों से काम करना पसंद करेंगे?",
+        te: "మీరు మీ మనసుతో కంటే మీ చేతులతో పని చేయడాన్ని ఇష్టపడతారా?",
+        ta: "நீங்கள் உங்கள் மனதை விட உங்கள் கைகளால் வேலை செய்வதை விரும்புவீர்களா?",
+        bn: "আপনি কি আপনার মন থেকে আপনার হাত দিয়ে কাজ করতে পছন্দ করবেন?",
+        gu: "શું તમે તમારા મન કરતાં તમારા હાથથી કામ કરવાનું પસંદ કરશો?",
+      },
+      options: commonOptions,
+      riasecCode: "R",
+    },
+    {
+      id: 27,
+      question: {
+        en: "Do you like studying math or science?",
+        hi: "क्या आपको गणित या विज्ञान पढ़ना पसंद है?",
+        te: "మీరు గణితం లేదా సైన్స్ చదవడం ఇష్టపడతారా?",
+        ta: "நீங்கள் கணிதம் அல்லது அறிவியலைப் படிப்பதை விரும்புகிறீர்களா?",
+        bn: "আপনি কি গণিত বা বিজ্ঞান পড়তে পছন্দ করেন?",
+        gu: "શું તમને ગણિત અથવા વિજ્ઞાન ભણવું ગમે છે?",
+      },
+      options: commonOptions,
+      riasecCode: "I",
+    },
+    {
+      id: 28,
+      question: {
+        en: "Do you enjoy helping and supporting other people?",
+        hi: "क्या आप दूसरे लोगों की मदद और समर्थन करने का आनंद लेते हैं?",
+        te: "మీరు ఇతరులకు సహాయం చేయడం మరియు మద్దతు ఇవ్వడం ఆనందిస్తారా?",
+        ta: "நீங்கள் மற்றவர்களுக்கு உதவி செய்வதையும் ஆதரிப்பதையும் ரசிக்கிறீர்களா?",
+        bn: "আপনি কি অন্যদের সাহায্য এবং সমর্থন করতে উপভোগ করেন?",
+        gu: "શું તમે અન્ય લોકોની મદદ અને સમર્થન કરવાનો આનંદ લો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "S",
+    },
+    {
+      id: 29,
+      question: {
+        en: "Would you rather create something new than follow established rules?",
+        hi: "क्या आप स्थापित नियमों का पालन करने के बजाय कुछ नया बनाना पसंद करेंगे?",
+        te: "మీరు స్థాపించబడిన నియమాలను అనుసరించడం కంటే కొత్తదాన్ని సృష్టించడాన్ని ఇష్టపడతారా?",
+        ta: "நீங்கள் நிறுவப்பட்ட விதிகளைப் பின்பற்றுவதை விட புதியதை உருவாக்க விரும்புவீர்களா?",
+        bn: "আপনি কি প্রতিষ্ঠিত নিয়ম অনুসরণ করার চেয়ে নতুন কিছু তৈরি করতে পছন্দ করবেন?",
+        gu: "શું તમે સ્થાપિત નિયમોનું પાલન કરવા કરતાં કંઈક નવું બનાવવાનું પસંદ કરશો?",
+      },
+      options: commonOptions,
+      riasecCode: "A",
+    },
+    {
+      id: 30,
+      question: {
+        en: "Are you interested in drama, theater, or performance?",
+        hi: "क्या आप नाटक, थिएटर या प्रदर्शन में रुचि रखते हैं?",
+        te: "మీరు నాటకం, థియేటర్ లేదా ప్రదర్శనలపై ఆసక్తి కలిగి ఉన్నారా?",
+        ta: "நீங்கள் நாடகம், தியேட்டர் அல்லது நிகழ்ச்சியில் ஆர்வமாக இருக்கிறீர்களா?",
+        bn: "আপনি কি নাটক, থিয়েটার বা পারফরম্যান্সে আগ্রহী?",
+        gu: "શું તમે નાટક, થિયેટર અથવા પ્રદર્શનમાં રુચિ ધરાવો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "A",
+    },
+    {
+      id: 31,
+      question: {
+        en: "Do you like working on artistic or creative projects?",
+        hi: "क्या आपको कलात्मक या रचनात्मक परियोजनाओं पर काम करना पसंद है?",
+        te: "మీరు కళాత్మక లేదా సృజనాత్మక ప్రాజెక్టులపై పని చేయడం ఇష్టపడతారా?",
+        ta: "நீங்கள் கலை அல்லது படைப்பு திட்டங்களில் வேலை செய்வதை விரும்புகிறீர்களா?",
+        bn: "আপনি কি শৈল্পিক বা সৃজনশীল প্রকল্পে কাজ করতে পছন্দ করেন?",
+        gu: "શું તમને કલાત્મક અથવા સર્જનાત્મક પ્રોજેક્ટ પર કામ કરવું ગમે છે?",
+      },
+      options: commonOptions,
+      riasecCode: "A",
+    },
+    {
+      id: 32,
+      question: {
+        en: "Would you prefer managing people to being managed?",
+        hi: "क्या आप प्रबंधित होने के बजाय लोगों का प्रबंधन करना पसंद करेंगे?",
+        te: "మీరు నిర్వహించబడడం కంటే ప్రజలను నిర్వహించడాన్ని ఇష్టపడతారా?",
+        ta: "நீங்கள் நிர்வகிக்கப்படுவதை விட மக்களை நிர்வகிப்பதை விரும்புவீர்களா?",
+        bn: "আপনি কি পরিচালিত হওয়ার চেয়ে মানুষ পরিচালনা করতে পছন্দ করবেন?",
+        gu: "શું તમે સંચાલિત થવા કરતાં લોકોનું સંચાલન કરવાનું પસંદ કરશો?",
+      },
+      options: commonOptions,
+      riasecCode: "E",
+    },
+    {
+      id: 33,
+      question: {
+        en: "Do you value creativity and original thinking?",
+        hi: "क्या आप रचनात्मकता और मौलिक सोच को महत्व देते हैं?",
+        te: "మీరు సృజనాత్మకత మరియు అసలైన ఆలోచనను విలువైనదిగా భావిస్తారా?",
+        ta: "நீங்கள் படைப்பாற்றல் மற்றும் அசல் சிந்தனையை மதிக்கிறீர்களா?",
+        bn: "আপনি কি সৃজনশীলতা এবং মূল চিন্তাভাবনাকে মূল্য দেন?",
+        gu: "શું તમે સર્જનાત્મકતા અને મૂળ વિચારસરણીને મૂલ્ય આપો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "A",
+    },
+    {
+      id: 34,
+      question: {
+        en: "Do you like working on cars, bikes, or mechanical systems?",
+        hi: "क्या आपको कार, बाइक या यांत्रिक प्रणालियों पर काम करना पसंद है?",
+        te: "మీరు కార్లు, బైక్‌లు లేదా యాంత్రిక వ్యవస్థలపై పని చేయడం ఇష్టపడతారా?",
+        ta: "நீங்கள் கார்கள், பைக்குகள் அல்லது இயந்திர அமைப்புகளில் வேலை செய்வதை விரும்புகிறீர்களா?",
+        bn: "আপনি কি গাড়ি, বাইক বা যান্ত্রিক সিস্টেমে কাজ করতে পছন্দ করেন?",
+        gu: "શું તમને કાર, બાઇક અથવા મિકેનિકલ સિસ્ટમ પર કામ કરવું ગમે છે?",
+      },
+      options: commonOptions,
+      riasecCode: "R",
+    },
+    {
+      id: 35,
+      question: {
+        en: "Are you comfortable working with physical materials?",
+        hi: "क्या आप भौतिक सामग्री के साथ काम करने में सहज हैं?",
+        te: "మీరు భౌతిక పదార్థాలతో పని చేయడంలో సౌకర్యంగా ఉన్నారా?",
+        ta: "நீங்கள் உடல் பொருட்களுடன் வேலை செய்வதில் வசதியாக இருக்கிறீர்களா?",
+        bn: "আপনি কি শারীরিক উপকরণ নিয়ে কাজ করতে স্বাচ্ছন্দ্যবোধ করেন?",
+        gu: "શું તમે ભૌતિક સામગ્રી સાથે કામ કરવામાં આરામદાયક છો?",
+      },
+      options: commonOptions,
+      riasecCode: "R",
+    },
+    {
+      id: 36,
+      question: {
+        en: "Are you meticulous about correctness and precision?",
+        hi: "क्या आप शुद्धता और सटीकता के बारे में सावधान हैं?",
+        te: "మీరు ఖచ్చితత్వం మరియు ఖచ్చితత్వం గురించి జాగ్రత్తగా ఉన్నారా?",
+        ta: "நீங்கள் சரியானது மற்றும் துல்லியம் பற்றி கவனமாக இருக்கிறீர்களா?",
+        bn: "আপনি কি সঠিকতা এবং নির্ভুলতা সম্পর্কে সতর্ক?",
+        gu: "શું તમે ચોકસાઈ અને ચોકસાઈ વિશે સાવધાન છો?",
+      },
+      options: commonOptions,
+      riasecCode: "C",
+    },
+    {
+      id: 37,
+      question: {
+        en: "Do you prefer hands-on, practical work over theoretical tasks?",
+        hi: "क्या आप सैद्धांतिक कार्यों पर हाथों से, व्यावहारिक कार्य पसंद करते हैं?",
+        te: "మీరు సైద్ధాంతిక పనుల కంటే చేతులతో, ఆచరణాత్మక పనిని ఇష్టపడతారా?",
+        ta: "நீங்கள் கோட்பாட்டு பணிகளை விட கைகளால், நடைமுறை வேலையை விரும்புகிறீர்களா?",
+        bn: "আপনি কি তাত্ত্বিক কাজের চেয়ে হাতে-কলমে, ব্যবহারিক কাজ পছন্দ করেন?",
+        gu: "શું તમે સૈદ્ધાંતિક કાર્યો કરતાં હાથથી, વ્યવહારિક કામ પસંદ કરો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "R",
+    },
+    {
+      id: 38,
+      question: {
+        en: "Are you comfortable taking risks and facing competition?",
+        hi: "क्या आप जोखिम लेने और प्रतिस्पर्धा का सामना करने में सहज हैं?",
+        te: "మీరు నష్టాలను తీసుకోవడం మరియు పోటీని ఎదుర్కోవడంలో సౌకర్యంగా ఉన్నారా?",
+        ta: "நீங்கள் ஆபத்துக்களை எடுப்பதிலும் போட்டியை எதிர்கொள்வதிலும் வசதியாக இருக்கிறீர்களா?",
+        bn: "আপনি কি ঝুঁকি নেওয়া এবং প্রতিযোগিতার মুখোমুখি হতে স্বাচ্ছন্দ্যবোধ করেন?",
+        gu: "શું તમે જોખમ લેવામાં અને સ્પર્ધાનો સામનો કરવામાં આરામદાયક છો?",
+      },
+      options: commonOptions,
+      riasecCode: "E",
+    },
+    {
+      id: 39,
+      question: {
+        en: "Are you good at expressing ideas through creative means?",
+        hi: "क्या आप रचनात्मक तरीकों से विचारों को व्यक्त करने में अच्छे हैं?",
+        te: "మీరు సృజనాత్మక మార్గాల ద్వారా ఆలోచనలను వ్యక్తపరచడంలో మంచివారా?",
+        ta: "நீங்கள் படைப்பாற்றல் வழிகளில் கருத்துக்களை வெளிப்படுத்துவதில் நல்லவரா?",
+        bn: "আপনি কি সৃজনশীল উপায়ে ধারণা প্রকাশ করতে ভাল?",
+        gu: "શું તમે સર્જનાત્મક માર્ગો દ્વારા વિચારોને વ્યક્ત કરવામાં સારા છો?",
+      },
+      options: commonOptions,
+      riasecCode: "A",
+    },
+    {
+      id: 40,
+      question: {
+        en: "Do you enjoy leading and persuading others?",
+        hi: "क्या आप दूसरों का नेतृत्व करने और उन्हें मनाने का आनंद लेते हैं?",
+        te: "మీరు ఇతరులకు నాయకత్వం వహించడం మరియు వారిని ఒప్పించడం ఆనందిస్తారా?",
+        ta: "நீங்கள் மற்றவர்களை வழிநடத்துவதையும் வற்புறுத்துவதையும் ரசிக்கிறீர்களா?",
+        bn: "আপনি কি অন্যদের নেতৃত্ব দেওয়া এবং প্ররোচিত করতে উপভোগ করেন?",
+        gu: "શું તમે અન્ય લોકોને આગળ વધારવા અને દલીલ કરવાનો આનંદ લો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "E",
+    },
+    {
+      id: 41,
+      question: {
+        en: "Do you enjoy building or constructing physical objects?",
+        hi: "क्या आप भौतिक वस्तुओं का निर्माण या निर्माण करने का आनंद लेते हैं?",
+        te: "మీరు భౌతిక వస్తువులను నిర్మించడం లేదా నిర్మించడం ఆనందిస్తారా?",
+        ta: "நீங்கள் உடல் பொருட்களைக் கட்டுவதையும் கட்டுவதையும் ரசிக்கிறீர்களா?",
+        bn: "আপনি কি শারীরিক বস্তু নির্মাণ বা নির্মাণ করতে উপভোগ করেন?",
+        gu: "શું તમે ભૌતિક વસ્તુઓ બનાવવા અથવા બાંધવાનો આનંદ લો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "R",
+    },
+    {
+      id: 42,
+      question: {
+        en: "Would you rather work with established systems than create new ones?",
+        hi: "क्या आप नई प्रणालियाँ बनाने के बजाय स्थापित प्रणालियों के साथ काम करना पसंद करेंगे?",
+        te: "మీరు కొత్త వాటిని సృష్టించడం కంటే స్థాపించబడిన వ్యవస్థలతో పని చేయడాన్ని ఇష్టపడతారా?",
+        ta: "நீங்கள் புதியவற்றை உருவாக்குவதை விட நிறுவப்பட்ட அமைப்புகளுடன் வேலை செய்வதை விரும்புவீர்களா?",
+        bn: "আপনি কি নতুন তৈরি করার চেয়ে প্রতিষ্ঠিত সিস্টেমের সাথে কাজ করতে পছন্দ করবেন?",
+        gu: "શું તમે નવા બનાવવા કરતાં સ્થાપિત સિસ્ટમો સાથે કામ કરવાનું પસંદ કરશો?",
+      },
+      options: commonOptions,
+      riasecCode: "C",
+    },
+    {
+      id: 43,
+      question: {
+        en: "Do you enjoy designing or creating visual content?",
+        hi: "क्या आप दृश्य सामग्री डिजाइन करने या बनाने का आनंद लेते हैं?",
+        te: "మీరు దృశ్య కంటెంట్‌ను డిజైన్ చేయడం లేదా సృష్టించడం ఆనందిస్తారా?",
+        ta: "நீங்கள் காட்சி உள்ளடக்கத்தை வடிவமைப்பதையும் உருவாக்குவதையும் ரசிக்கிறீர்களா?",
+        bn: "আপনি কি ভিজ্যুয়াল কনটেন্ট ডিজাইন বা তৈরি করতে উপভোগ করেন?",
+        gu: "શું તમે વિઝ્યુઅલ સામગ્રી ડિઝાઇન કરવા અથવા બનાવવાનો આનંદ લો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "A",
+    },
+    {
+      id: 44,
+      question: {
+        en: "Do you enjoy creative activities like art, music, or writing?",
+        hi: "क्या आप कला, संगीत या लेखन जैसी रचनात्मक गतिविधियों का आनंद लेते हैं?",
+        te: "మీరు కళ, సంగీతం లేదా రచన వంటి సృజనాత్మక కార్యకలాపాలను ఆనందిస్తారా?",
+        ta: "நீங்கள் கலை, இசை அல்லது எழுத்து போன்ற படைப்பு செயல்பாடுகளை ரசிக்கிறீர்களா?",
+        bn: "আপনি কি শিল্প, সঙ্গীত বা লেখার মতো সৃজনশীল কার্যক্রম উপভোগ করেন?",
+        gu: "શું તમે કલા, સંગીત અથવા લેખન જેવી સર્જનાત્મક પ્રવૃત્તિઓનો આનંદ લો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "A",
+    },
+    {
+      id: 45,
+      question: {
+        en: "Are you good at understanding and communicating with others?",
+        hi: "क्या आप दूसरों को समझने और उनके साथ संवाद करने में अच्छे हैं?",
+        te: "మీరు ఇతరులను అర్థం చేసుకోవడం మరియు వారితో కమ్యూనికేట్ చేయడంలో మంచివారా?",
+        ta: "நீங்கள் மற்றவர்களைப் புரிந்துகொண்டு அவர்களுடன் தொடர்பு கொள்வதில் நல்லவரா?",
+        bn: "আপনি কি অন্যদের বুঝতে এবং তাদের সাথে যোগাযোগ করতে ভাল?",
+        gu: "શું તમે અન્ય લોકોને સમજવામાં અને તેમની સાથે વાતચીત કરવામાં સારા છો?",
+      },
+      options: commonOptions,
+      riasecCode: "S",
+    },
+    {
+      id: 46,
+      question: {
+        en: "Do you like outdoor activities and working in nature?",
+        hi: "क्या आपको बाहरी गतिविधियाँ और प्रकृति में काम करना पसंद है?",
+        te: "మీరు బహిరంగ కార్యకలాపాలు మరియు ప్రకృతిలో పని చేయడం ఇష్టపడతారా?",
+        ta: "நீங்கள் வெளிப்புற செயல்பாடுகள் மற்றும் இயற்கையில் வேலை செய்வதை விரும்புகிறீர்களா?",
+        bn: "আপনি কি বাইরের কার্যক্রম এবং প্রকৃতিতে কাজ করতে পছন্দ করেন?",
+        gu: "શું તમને આઉટડોર પ્રવૃત્તિઓ અને પ્રકૃતિમાં કામ કરવું ગમે છે?",
+      },
+      options: commonOptions,
+      riasecCode: "R",
+    },
+    {
+      id: 47,
+      question: {
+        en: "Do you prefer working in flexible, unstructured environments?",
+        hi: "क्या आप लचीले, असंरचित वातावरण में काम करना पसंद करते हैं?",
+        te: "మీరు సరళమైన, నిర్మాణాత్మక వాతావరణాలలో పని చేయడాన్ని ఇష్టపడతారా?",
+        ta: "நீங்கள் நெகிழ்வான, கட்டமைக்கப்படாத சூழல்களில் வேலை செய்வதை விரும்புகிறீர்களா?",
+        bn: "আপনি কি নমনীয়, অকাঠামোগত পরিবেশে কাজ করতে পছন্দ করেন?",
+        gu: "શું તમે સુગમ, અસંગઠિત વાતાવરણમાં કામ કરવાનું પસંદ કરો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "A",
+    },
+    {
+      id: 48,
+      question: {
+        en: "Do you enjoy working with tools or machinery?",
+        hi: "क्या आप उपकरणों या मशीनरी के साथ काम करने का आनंद लेते हैं?",
+        te: "మీరు సాధనాలు లేదా యంత్రాలతో పని చేయడం ఆనందిస్తారా?",
+        ta: "நீங்கள் கருவிகள் அல்லது இயந்திரங்களுடன் வேலை செய்வதை ரசிக்கிறீர்களா?",
+        bn: "আপনি কি সরঞ্জাম বা যন্ত্রপাতি নিয়ে কাজ করতে উপভোগ করেন?",
+        gu: "શું તમે સાધનો અથવા મશીનરી સાથે કામ કરવાનો આનંદ લો છો?",
+      },
+      options: commonOptions,
+      riasecCode: "R",
+    },
+  ],
   aptitude: [
     {
       id: 1,
@@ -749,13 +1376,13 @@ const testQuestions = {
 };
 
 const testTitles = {
-  aptitude: {
-    en: "Aptitude Assessment",
-    hi: "योग्यता मूल्यांकन",
-    te: "ఆప్టిట్యూడ్ అసెస్‌మెంట్",
-    ta: "திறன் மதிப்பீடு",
-    bn: "যোগ্যতা মূল্যায়ন",
-    gu: "યોગ્યતા મૂલ્યાંકન",
+  riasec: {
+    en: "RIASEC Personality Assessment",
+    hi: "RIASEC व्यक्तित्व मूल्यांकन",
+    te: "RIASEC వ్యక్తిత్వ అంచనా",
+    ta: "RIASEC ஆளுமை மதிப்பீடு",
+    bn: "RIASEC ব্যক্তিত্ব মূল্যায়ন",
+    gu: "RIASEC વ્યક્તિત્વ મૂલ્યાંકન",
   },
   values: {
     en: "Values & Motivation",
@@ -776,7 +1403,7 @@ const testTitles = {
 };
 
 const testEmojis = {
-  aptitude: "🎯",
+  riasec: "🧠",
   values: "💡",
   personal: "👤",
 };
@@ -791,20 +1418,111 @@ export function TestFormPage({
   completeTest,
   currentTestIndex,
   totalTests,
+  assessmentId,
   onTestComplete,
 }: TestFormPageProps) {
   const [showDialog, setShowDialog] = useState(true);
   const [answers, setAnswers] = useState<{ [key: number]: string | string[] }>(
     {}
   );
+  const [testResponseId, setTestResponseId] = useState<number | null>(null);
+  const [currentQuestionIndexState, setCurrentQuestionIndexState] = useState(0);
+  const [isLoadingTestData, setIsLoadingTestData] = useState(true);
   const questions = testQuestions[testType] || [];
   const lang = userProfile.language;
+
+  // Load test data when component mounts or when testType/assessmentId changes
+  useEffect(() => {
+    // Reset answers when testType changes to prevent answers from previous test/page from showing
+    setAnswers({});
+    setTestResponseId(null);
+    setCurrentQuestionIndexState(0);
+    
+    const loadTestData = async () => {
+      if (!assessmentId) {
+        setIsLoadingTestData(false);
+        return;
+      }
+
+      try {
+        setIsLoadingTestData(true);
+        const response = await assessmentService.getTestData(
+          testType,
+          assessmentId
+        );
+        const data = response.data;
+
+        if (data.test_response_id) {
+          setTestResponseId(data.test_response_id);
+          setCurrentQuestionIndexState(data.current_question_index || 0);
+
+          // Load saved answers if they exist, but filter out empty values
+          // IMPORTANT: Only load answers for questions that exist in the current test
+          if (
+            data.saved_answers &&
+            Object.keys(data.saved_answers).length > 0
+          ) {
+            const filteredSavedAnswers: { [key: number]: string | string[] } =
+              {};
+            const currentQuestionIds = new Set(questions.map(q => q.id));
+            
+            Object.keys(data.saved_answers).forEach((key) => {
+              const questionId = parseInt(key);
+              
+              // CRITICAL: Only load answers for questions that exist in the current test
+              // This prevents answers from other tests or pages from being loaded
+              if (!currentQuestionIds.has(questionId)) {
+                console.warn(`Skipping answer for question ${questionId} - not in current test (${testType})`);
+                return;
+              }
+              
+              const answer = data.saved_answers[questionId];
+
+              // Only include answers that have actual values
+              if (answer !== undefined && answer !== null) {
+                if (Array.isArray(answer)) {
+                  const validAnswers = answer.filter(
+                    (item: any) => item && String(item).trim() !== ""
+                  );
+                  if (validAnswers.length > 0) {
+                    filteredSavedAnswers[questionId] = validAnswers;
+                  }
+                } else if (typeof answer === "string" && answer.trim() !== "") {
+                  filteredSavedAnswers[questionId] = answer.trim();
+                }
+              }
+            });
+            setAnswers(filteredSavedAnswers);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading test data:", error);
+        toast.error("Failed to load test data");
+      } finally {
+        setIsLoadingTestData(false);
+      }
+    };
+
+    loadTestData();
+  }, [testType, assessmentId, questions]);
 
   // Early return if no questions available
   if (!questions || questions.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         Loading questions...
+      </div>
+    );
+  }
+
+  // Show loading state while fetching test data
+  if (isLoadingTestData && assessmentId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading test data...</p>
+        </div>
       </div>
     );
   }
@@ -834,34 +1552,218 @@ export function TestFormPage({
   };
 
   const calculateProgress = () => {
+    if (!questions || questions.length === 0) return 0;
+
     const answeredCount = questions.filter((q) => {
       const answer = answers[q.id];
-      if (!answer) return false;
-      if (Array.isArray(answer)) return answer.length > 0;
-      if (typeof answer === "string") return answer.trim() !== "";
-      return true;
+      // If no answer exists, not answered
+      if (answer === undefined || answer === null) return false;
+
+      // If it's an array, check if it has at least one non-empty item
+      if (Array.isArray(answer)) {
+        return (
+          answer.length > 0 && answer.some((item) => item && item.trim() !== "")
+        );
+      }
+
+      // If it's a string, check if it's not empty after trimming
+      if (typeof answer === "string") {
+        return answer.trim() !== "";
+      }
+
+      return false;
     }).length;
-    return (answeredCount / questions.length) * 100;
+
+    const progress = (answeredCount / questions.length) * 100;
+    return Math.min(100, Math.max(0, progress)); // Clamp between 0 and 100
   };
 
-  const handleSave = () => {
-    const savedData: SavedAssessment = {
-      testType,
-      progress: calculateProgress(),
-      answers,
-      currentQuestionIndex: 0,
-    };
-    setSavedAssessment(savedData);
+  const handleSave = async () => {
+    // Filter out empty answers before saving and calculating progress
+    const filteredAnswers: { [key: number]: string | string[] } = {};
 
-    toast.success("Progress Saved!", {
-      description: "You can continue this assessment later.",
-      icon: <CheckCircle className="h-5 w-5" />,
-      duration: 2000,
+    // Only count answers for questions that exist in the current question set
+    // This ensures we're calculating progress correctly based on actual questions
+    questions.forEach((q) => {
+      const answer = answers[q.id];
+
+      // Only include answers that have actual values
+      if (answer !== undefined && answer !== null) {
+        if (Array.isArray(answer)) {
+          const validAnswers = answer.filter(
+            (item) => item && item.trim() !== ""
+          );
+          if (validAnswers.length > 0) {
+            filteredAnswers[q.id] = validAnswers;
+          }
+        } else if (typeof answer === "string" && answer.trim() !== "") {
+          filteredAnswers[q.id] = answer.trim();
+        }
+      }
     });
 
-    setTimeout(() => {
-      navigateTo("home");
-    }, 2000);
+    // Calculate progress based on actual questions answered
+    // Only count questions that exist in the questions array
+    const answeredCount = Object.keys(filteredAnswers).length;
+    const progress =
+      questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
+    const clampedProgress = Math.min(100, Math.max(0, progress));
+
+    // Debug logging
+    console.log("Progress calculation:", {
+      answeredCount,
+      totalQuestions: questions.length,
+      progress: clampedProgress,
+      filteredAnswersKeys: Object.keys(filteredAnswers),
+      allAnswersKeys: Object.keys(answers),
+    });
+
+    // If we have testResponseId, save to backend
+    if (testResponseId && assessmentId) {
+      try {
+        // Calculate current question index based on answered questions
+        const currentIdx = answeredCount;
+
+        // Save to backend (only filtered answers with actual values)
+        await assessmentService.saveProgress({
+          test_response_id: testResponseId,
+          answers: filteredAnswers,
+          current_question_index: currentIdx,
+        });
+
+        // Calculate overall assessment progress across all tests
+        let overallProgress = clampedProgress; // Default to current test progress
+        try {
+          const homeResponse = await assessmentService.getHome();
+          const homeData = homeResponse.data;
+
+          if (
+            homeData.saved_assessment &&
+            homeData.saved_assessment.test_responses
+          ) {
+            const testResponses = homeData.saved_assessment.test_responses;
+            const testOrder: TestType[] = ["riasec", "values", "personal"];
+            const totalQuestions = {
+              riasec: 48,
+              values: 20,
+              personal: 15,
+            };
+
+            let totalProgress = 0;
+            let testCount = 0;
+
+            // Calculate progress for each test
+            for (const testTypeItem of testOrder) {
+              const testResponse = testResponses.find(
+                (tr: any) => tr.test_type === testTypeItem
+              );
+
+              if (testResponse) {
+                if (testResponse.is_completed) {
+                  // Test is completed = 100%
+                  totalProgress += 100;
+                  testCount++;
+                } else if (testTypeItem === testType) {
+                  // Current test being saved - use calculated progress
+                  totalProgress += clampedProgress;
+                  testCount++;
+                } else {
+                  // Other incomplete tests - estimate based on current_question_index
+                  const questionCount = totalQuestions[testTypeItem] || 0;
+                  if (
+                    questionCount > 0 &&
+                    testResponse.current_question_index > 0
+                  ) {
+                    const testProgress = Math.min(
+                      100,
+                      (testResponse.current_question_index / questionCount) *
+                        100
+                    );
+                    totalProgress += testProgress;
+                    testCount++;
+                  } else {
+                    testCount++; // Count as 0% progress
+                  }
+                }
+              } else {
+                testCount++; // Test not started = 0% progress
+              }
+            }
+
+            // Calculate overall progress as average
+            if (testCount > 0) {
+              overallProgress = totalProgress / testCount;
+              overallProgress = Math.min(100, Math.max(0, overallProgress));
+            }
+          }
+        } catch (error) {
+          console.error("Error calculating overall progress:", error);
+          // Use current test progress as fallback
+        }
+
+        // Also save to local state for resume functionality
+        const savedData: SavedAssessment = {
+          testType,
+          progress: clampedProgress,
+          overallProgress: overallProgress,
+          answers: filteredAnswers,
+          currentQuestionIndex: currentIdx,
+        };
+        setSavedAssessment(savedData);
+
+        toast.success("Progress Saved!", {
+          description:
+            "Your progress has been saved. You can continue this assessment later.",
+          icon: <CheckCircle className="h-5 w-5" />,
+          duration: 2000,
+        });
+
+        setTimeout(() => {
+          navigateTo("home");
+        }, 2000);
+      } catch (error: any) {
+        console.error("Error saving progress:", error);
+        toast.error("Failed to save progress to server. Saving locally only.", {
+          description: error.response?.data?.error || "Please try again later.",
+          duration: 3000,
+        });
+
+        // Fallback: save to local state only (use current test progress as overall)
+        const savedData: SavedAssessment = {
+          testType,
+          progress: clampedProgress,
+          overallProgress: clampedProgress, // Use current test progress as overall
+          answers: filteredAnswers,
+          currentQuestionIndex: answeredCount,
+        };
+        setSavedAssessment(savedData);
+
+        setTimeout(() => {
+          navigateTo("home");
+        }, 2000);
+      }
+    } else {
+      // No testResponseId (guest mode or assessment not started properly)
+      // Just save to local state (use current test progress as overall)
+      const savedData: SavedAssessment = {
+        testType,
+        progress: clampedProgress,
+        overallProgress: clampedProgress, // Use current test progress as overall
+        answers: filteredAnswers,
+        currentQuestionIndex: answeredCount,
+      };
+      setSavedAssessment(savedData);
+
+      toast.success("Progress Saved Locally!", {
+        description: "You can continue this assessment later.",
+        icon: <CheckCircle className="h-5 w-5" />,
+        duration: 2000,
+      });
+
+      setTimeout(() => {
+        navigateTo("home");
+      }, 2000);
+    }
   };
 
   const handleAutoFill = () => {
@@ -892,7 +1794,7 @@ export function TestFormPage({
           autoFilledAnswers[q.id] = options[0];
         }
       } else {
-        // For default radio buttons (aptitude/values), select "Agree" (4th option, index 3)
+        // For default radio buttons (riasec/values), select "Agree" (4th option, index 3)
         const options = commonOptions[lang] || commonOptions.en;
         // "Agree" is the 4th option (index 3) in the 5-option scale: [0:Strongly Disagree, 1:Disagree, 2:Neutral, 3:Agree, 4:Strongly Agree]
         const agreeIndex = 3; // "Agree" option
@@ -967,8 +1869,8 @@ export function TestFormPage({
             </DialogDescription>
           </DialogHeader>
 
-          {/* Instructions for Aptitude Test */}
-          {testType === "aptitude" && (
+          {/* Instructions for RIASEC Test */}
+          {testType === "riasec" && (
             <div className="px-2 py-4 space-y-3 text-sm text-gray-700">
               {lang === "en" && (
                 <>

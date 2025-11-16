@@ -24,7 +24,7 @@ export type Page =
   | "assessment-history"
   | "assessment-responses"
   | "settings";
-export type TestType = "aptitude" | "values" | "personal";
+export type TestType = "riasec" | "values" | "personal";
 export type Language = "en" | "hi" | "te" | "ta" | "bn" | "gu";
 
 export interface CompletedAssessment {
@@ -36,7 +36,8 @@ export interface CompletedAssessment {
 
 export interface SavedAssessment {
   testType: TestType;
-  progress: number;
+  progress: number; // Progress for current test
+  overallProgress?: number; // Overall assessment progress across all tests
   answers: { [key: number]: string | string[] };
   currentQuestionIndex: number;
 }
@@ -67,7 +68,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState<Page>("login");
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [testFlow, setTestFlow] = useState<TestType[]>([
-    "aptitude",
+    "riasec",
     "values",
     "personal",
   ]);
@@ -92,6 +93,128 @@ function App() {
     language: "en",
   });
   const [loading, setLoading] = useState(true);
+
+  // Function to load saved assessment from backend
+  const loadSavedAssessment = async (homeData?: any) => {
+    try {
+      let dataToUse = homeData;
+      
+      // If homeData not provided, fetch it
+      if (!dataToUse) {
+        const response = await assessmentService.getHome();
+        dataToUse = response.data;
+      }
+
+      if (dataToUse?.saved_assessment) {
+        const savedAssessmentData = dataToUse.saved_assessment;
+        const testResponses = savedAssessmentData.test_responses || [];
+        
+        if (testResponses.length > 0) {
+          const testOrder: TestType[] = ['riasec', 'values', 'personal'];
+          const totalQuestions = {
+            riasec: 48,
+            values: 20,
+            personal: 15,
+          };
+          
+          // Find the current active test (the one that's not completed or has the most progress)
+          let activeTest: TestType | null = null;
+          let activeTestProgress = 0;
+          let activeTestAnswers: { [key: number]: string | string[] } = {};
+          
+          // Calculate overall progress and find active test
+          let totalProgress = 0;
+          let testCount = 0;
+          
+          for (const testTypeItem of testOrder) {
+            const testResponse = testResponses.find((tr: any) => tr.test_type === testTypeItem);
+            
+            if (testResponse) {
+              if (testResponse.is_completed) {
+                totalProgress += 100;
+                testCount++;
+              } else {
+                // Get progress for incomplete test
+                const questionCount = totalQuestions[testTypeItem] || 0;
+                let testProgress = 0;
+                
+                if (questionCount > 0 && testResponse.current_question_index > 0) {
+                  testProgress = Math.min(100, (testResponse.current_question_index / questionCount) * 100);
+                }
+                
+                totalProgress += testProgress;
+                testCount++;
+                
+                // Set as active test if it has more progress than current active
+                if (testProgress > activeTestProgress || activeTest === null) {
+                  activeTest = testTypeItem as TestType;
+                  activeTestProgress = testProgress;
+                  // Try to load answers for this test
+                  try {
+                    const testDataResponse = await assessmentService.getTestData(testTypeItem, savedAssessmentData.id);
+                    const testData = testDataResponse.data;
+                    if (testData.saved_answers) {
+                      activeTestAnswers = testData.saved_answers;
+                    }
+                  } catch (error) {
+                    console.error('Error loading test answers:', error);
+                  }
+                }
+              }
+            } else {
+              testCount++; // Test not started = 0% progress
+              // If no active test yet, set first unstarted test as active
+              if (activeTest === null) {
+                activeTest = testTypeItem as TestType;
+              }
+            }
+          }
+          
+          // Calculate overall progress as average
+          const overallProgress = testCount > 0 ? totalProgress / testCount : 0;
+          
+          if (activeTest) {
+            const savedAssessment: SavedAssessment = {
+              testType: activeTest,
+              progress: activeTestProgress,
+              overallProgress: Math.min(100, Math.max(0, overallProgress)),
+              answers: activeTestAnswers,
+              currentQuestionIndex: testResponses.find((tr: any) => tr.test_type === activeTest)?.current_question_index || 0,
+            };
+            
+            setSavedAssessment(savedAssessment);
+            setSelectedAssessmentId(savedAssessmentData.id);
+            
+            // Also save to localStorage as backup
+            try {
+              localStorage.setItem('pathfinder_saved_assessment', JSON.stringify(savedAssessment));
+              localStorage.setItem('pathfinder_current_assessment_id', savedAssessmentData.id.toString());
+            } catch (error) {
+              console.error('Error saving to localStorage:', error);
+            }
+          }
+        }
+      } else {
+        // No saved assessment, clear state
+        setSavedAssessment(null);
+        setSelectedAssessmentId(null);
+        localStorage.removeItem('pathfinder_saved_assessment');
+        localStorage.removeItem('pathfinder_current_assessment_id');
+      }
+    } catch (error) {
+      console.error('Error loading saved assessment:', error);
+      // Try to restore from localStorage as fallback
+      try {
+        const savedData = localStorage.getItem('pathfinder_saved_assessment');
+        if (savedData) {
+          const parsed = JSON.parse(savedData);
+          setSavedAssessment(parsed);
+        }
+      } catch (localError) {
+        console.error('Error loading from localStorage:', localError);
+      }
+    }
+  };
 
   // Function to load assessments - can be called from multiple places
   const loadAssessments = async () => {
@@ -169,6 +292,9 @@ function App() {
             phone: homeData.user_profile.phone,
           });
 
+          // Load saved assessment from backend
+          await loadSavedAssessment(homeData);
+
           // Load ALL completed assessments
           await loadAssessments();
 
@@ -194,7 +320,7 @@ function App() {
 
   const currentTest = testFlow[currentTestIndex];
 
-  const navigateTo = (
+  const navigateTo = async (
     page: Page,
     displayResults?: boolean,
     assessmentId?: number
@@ -208,6 +334,15 @@ function App() {
       setSelectedAssessmentId(assessmentId);
     }
     setCurrentPage(page);
+    
+    // Reload saved assessment when navigating to home page
+    if (page === "home" && !isGuestMode && authService.isAuthenticated()) {
+      try {
+        await loadSavedAssessment();
+      } catch (error) {
+        console.error('Error reloading saved assessment:', error);
+      }
+    }
   };
 
   const startAssessmentFlow = async () => {
@@ -382,6 +517,7 @@ function App() {
             completeTest={completeTest}
             currentTestIndex={currentTestIndex}
             totalTests={testFlow.length}
+            assessmentId={selectedAssessmentId || undefined}
             onTestComplete={(testType, answers) => {
               setAllTestAnswers((prev) => ({ ...prev, [testType]: answers }));
             }}
