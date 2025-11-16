@@ -238,9 +238,7 @@ export function getCareersByRIASECCode(riasecCodes: string): string[] {
   }
   
   // If no matches found with ordered logic, fall back to matching codes that contain all letters in any order
-  // This matches ALL permutations: RIA, RAI, IAR, IRA, ARI, AIR, and longer codes containing these letters
   if (matchingCareers.length === 0) {
-    // Generate all permutations of the top 3 codes for explicit matching
     const generatePermutations = (arr: string[]): string[] => {
       if (arr.length <= 1) return arr;
       const result: string[] = [];

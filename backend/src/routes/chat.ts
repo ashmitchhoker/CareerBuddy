@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth';
 import { RAGChatService } from '../services/ragChat';
+import { GeminiService } from '../services/gemini';
 import type {
   ChatStartRequest,
   ChatMessageRequest,
@@ -11,8 +12,9 @@ import type {
 const router = Router();
 const prisma = new PrismaClient();
 
-// Lazy initialization of RAG service
+// Lazy initialization of services
 let ragService: RAGChatService | null = null;
+let geminiService: GeminiService | null = null;
 
 function getRAGService(): RAGChatService {
   if (!ragService) {
@@ -21,6 +23,17 @@ function getRAGService(): RAGChatService {
     ragService = new RAGChatService(provider);
   }
   return ragService;
+}
+
+function getGeminiService(): GeminiService {
+  if (!geminiService) {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY or GOOGLE_API_KEY is required for assessment greetings');
+    }
+    geminiService = new GeminiService(apiKey);
+  }
+  return geminiService;
 }
 
 // POST /api/chat/start - Start a new chat session
@@ -133,14 +146,15 @@ router.post('/start', authenticateToken, async (req: Request, res: Response) => 
 
         // Only create if still doesn't exist after final check
         if (!finalCheck) {
-          const aiMessage = await getRAGService().generateInitialGreeting(
+          // Use Gemini for post-assessment initial greeting (preserves recommendation logic)
+          const aiResponse = await getGeminiService().generateInitialGreeting(
             assessmentSummary,
             language
           );
 
           initialMessage = {
-            reply: aiMessage.reply,
-            intent: 'greeting',
+            reply: aiResponse.reply,
+            intent: aiResponse.intent,
           };
 
           // Save bot message to database
@@ -148,7 +162,7 @@ router.post('/start', authenticateToken, async (req: Request, res: Response) => 
             data: {
               user_id: userId,
               assessment_id: assessment.id,
-              message_text: aiMessage.reply,
+              message_text: aiResponse.reply,
               sender: 'bot',
               is_results_chat: true,
             },
