@@ -1,5 +1,5 @@
 export type Language = "en" | "hi" | "te" | "ta" | "bn" | "gu";
-export type TestType = "aptitude" | "values" | "personal";
+export type TestType = "riasec" | "values" | "personal";
 
 export interface UserProfile {
   name: string;

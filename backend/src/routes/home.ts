@@ -30,8 +30,8 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Get saved (in-progress) assessment
-    const savedAssessment = await prisma.assessment.findFirst({
+    // Get saved (in-progress) assessment - only if it has saved progress
+    let savedAssessment = await prisma.assessment.findFirst({
       where: {
         user_id: userId,
         status: 'in_progress',
@@ -42,6 +42,45 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
         },
       },
     });
+
+    // Filter out assessments with no saved progress (0% progress)
+    // Only show assessments where user has actually saved at least one answer
+    if (savedAssessment) {
+      let hasAnyProgress = false;
+      
+      // Check if any test response has saved answers or progress
+      for (const testResponse of savedAssessment.test_responses) {
+        // Check if there are saved responses (not empty)
+        if (testResponse.responses && testResponse.responses.trim() !== '' && testResponse.responses !== '{}') {
+          try {
+            const parsed = JSON.parse(testResponse.responses);
+            if (Object.keys(parsed).length > 0) {
+              hasAnyProgress = true;
+              break;
+            }
+          } catch {
+            // If parsing fails, check if it's not empty
+            if (testResponse.responses.trim().length > 2) {
+              hasAnyProgress = true;
+              break;
+            }
+          }
+        }
+        // Also check if current_question_index > 0 (user has progressed)
+        if (testResponse.current_question_index && testResponse.current_question_index > 0) {
+          hasAnyProgress = true;
+          break;
+        }
+      }
+      
+      // If no progress found, set savedAssessment to null so it won't be shown
+      if (!hasAnyProgress) {
+        // Optionally delete the empty assessment to clean up
+        // await prisma.assessment.delete({ where: { id: savedAssessment.id } });
+        // For now, just don't return it
+        savedAssessment = null;
+      }
+    }
 
     // Get completed assessments
     const completedAssessmentsRaw = await prisma.assessment.findMany({

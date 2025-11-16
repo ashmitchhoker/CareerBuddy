@@ -157,7 +157,7 @@ const translations = {
 };
 
 const testTitles: { [key: string]: string } = {
-  aptitude: 'Aptitude Assessment',
+  riasec: 'RIASEC Personality Assessment',
   values: 'Values & Motivation',
   personal: 'Personal Information'
 };
@@ -234,15 +234,15 @@ export function HomePage({ userProfile, setUserProfile, navigateTo, savedAssessm
                 <div>
                   <h3 className="text-gray-900">{t.pendingAssessment}</h3>
                   <p className="text-gray-600 text-sm mt-1">
-                    {savedAssessment.testType ? testTitles[savedAssessment.testType] : 'Assessment'} - Continue where you left off
+                    Complete Assessment - Continue where you left off
                   </p>
                 </div>
                 <div className="text-right">
-                  <div className="text-purple-600">{Math.round(savedAssessment.progress)}%</div>
+                  <div className="text-purple-600">{Math.round(savedAssessment.overallProgress ?? savedAssessment.progress)}%</div>
                   <div className="text-gray-500 text-sm">{t.complete}</div>
                 </div>
               </div>
-              <Progress value={savedAssessment.progress} className="h-3 mb-4" />
+              <Progress value={savedAssessment.overallProgress ?? savedAssessment.progress} className="h-3 mb-4" />
               <Button 
                 onClick={startAssessmentFlow}
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"

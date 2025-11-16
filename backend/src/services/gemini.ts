@@ -62,7 +62,7 @@ async function retryWithBackoff<T>(
 export class GeminiService {
   private genAI: GoogleGenerativeAI;
   private apiKey: string;
-  private readonly modelId = "gemini-2.5-pro";
+  private readonly modelId = "gemini-2.5-flash";
 
   constructor(apiKey: string) {
     if (!apiKey) {
@@ -251,16 +251,24 @@ This is the FIRST message after the assessment is complete.
 Assessment summary:
 ${assessmentSummary}
 
+CRITICAL INSTRUCTIONS:
+- You MUST ONLY mention career paths that appear in the "Career Recommendations" section above.
+- Use the EXACT career names from the recommendations list.
+- Do NOT suggest, invent, or mention any other careers that are not in the recommendations list.
+- If the summary shows "Matching Careers", you can ONLY use careers from that list.
+
 Instruction:
 - Greet the student by name if provided in the summary.
-- Present 3-4 career paths from the recommendations in a structured format.
+- Present the career paths from the "Career Recommendations" section in a structured format.
 - Format each career path clearly with:
-  * Career name (use **bold** or similar emphasis)
-  * Brief reason why it fits (1 sentence)
-  * Key next steps (2-3 bullet points or short phrases)
+  * Career name (use **bold** or similar emphasis) - MUST match exactly from recommendations
+  * Brief reason why it fits (use the reason from recommendations)
+  * Key next steps (use the next steps from recommendations)
 - Use clear formatting with line breaks between each career path.
 - Keep the overall message concise but informative.
 - End with encouragement to ask follow-up questions.
+- DO NOT add any careers that are not in the recommendations list above.
+
 Respond with JSON {"reply":"...", "intent":"follow_up"}.`;
 
     try {
@@ -280,9 +288,19 @@ Respond with JSON {"reply":"...", "intent":"follow_up"}.`;
 
   async generateRecommendations(
     assessment: AssessmentPayload,
-    retryOptions?: RetryOptions
+    retryOptions?: RetryOptions,
+    riasecScores?: {
+      scores: { [code: string]: number };
+      top3: string;
+      ordered: Array<{ code: string; score: number }>;
+    } | null,
+    matchingCareers?: string[]
   ): Promise<AssessmentResponse> {
-    const prompt = this.buildRecommendationPrompt(assessment);
+    const prompt = this.buildRecommendationPrompt(
+      assessment,
+      riasecScores,
+      matchingCareers
+    );
 
     try {
       const response = await retryWithBackoff(async () => {
@@ -291,10 +309,135 @@ Respond with JSON {"reply":"...", "intent":"follow_up"}.`;
         return result.response.text();
       }, retryOptions);
 
-      return this.parseRecommendationResponse(
+      const parsedResponse = this.parseRecommendationResponse(
         response,
         assessment.userProfile.language
       );
+
+      // Validate and filter recommendations to only include careers from the matching list
+      if (matchingCareers && matchingCareers.length > 0) {
+        const validCareers = new Set(
+          matchingCareers.map((c) => c.toUpperCase().trim())
+        );
+
+        console.log(
+          `Validating ${parsedResponse.recommendations.length} recommendations against ${matchingCareers.length} valid careers`
+        );
+        console.log(
+          `Valid careers sample: ${Array.from(validCareers)
+            .slice(0, 5)
+            .join(", ")}`
+        );
+
+        const filteredRecommendations = parsedResponse.recommendations.filter(
+          (rec: CareerRecommendation) => {
+            const recTitle = rec.title.toUpperCase().trim();
+
+            // Remove common prefixes/suffixes that might be added by LLM
+            const cleanedTitle = recTitle
+              .replace(
+                /^(CHEF|CULINARY|FOOD|MECHANICAL|ENGINEER|SCIENTIST)\s+/i,
+                ""
+              )
+              .replace(
+                /\s+(CHEF|CULINARY|FOOD|MECHANICAL|ENGINEER|SCIENTIST)$/i,
+                ""
+              )
+              .trim();
+
+            // Check if the recommendation title matches any career in the list (case-insensitive, exact or partial match)
+            const matches = Array.from(validCareers).some((career) => {
+              const careerUpper = career.toUpperCase();
+              // Try exact match first
+              if (recTitle === careerUpper || cleanedTitle === careerUpper) {
+                return true;
+              }
+              // Try if career name is contained in recommendation (e.g., "INDUSTRIAL DESIGNER" matches "Industrial Designer")
+              if (
+                careerUpper.includes(recTitle) ||
+                recTitle.includes(careerUpper)
+              ) {
+                return true;
+              }
+              // Try word-by-word matching for multi-word careers
+              const careerWords = careerUpper.split(/\s+/);
+              const recWords = recTitle.split(/\s+/);
+              if (careerWords.length > 1 && recWords.length > 1) {
+                // Check if all major words from career are in recommendation
+                const majorWords = careerWords.filter((w) => w.length > 3); // Skip short words like "THE", "AND"
+                if (
+                  majorWords.length > 0 &&
+                  majorWords.every((word) =>
+                    recWords.some(
+                      (rw) => rw.includes(word) || word.includes(rw)
+                    )
+                  )
+                ) {
+                  return true;
+                }
+              }
+              return false;
+            });
+
+            if (!matches) {
+              console.warn(
+                `❌ FILTERED OUT: "${
+                  rec.title
+                }" (not in matching careers list). Valid careers are: ${Array.from(
+                  validCareers
+                )
+                  .slice(0, 10)
+                  .join(", ")}...`
+              );
+            } else {
+              console.log(
+                `✅ VALID: "${rec.title}" matches a career in the list`
+              );
+            }
+            return matches;
+          }
+        );
+
+        if (
+          filteredRecommendations.length === 0 &&
+          parsedResponse.recommendations.length > 0
+        ) {
+          console.warn(
+            `All recommendations were filtered out. Using first ${Math.min(
+              3,
+              matchingCareers.length
+            )} careers from matching list.`
+          );
+          // Fallback: use first few careers from matching list
+          return {
+            recommendations: matchingCareers
+              .slice(0, Math.min(3, matchingCareers.length))
+              .map((career) => ({
+                title: career,
+                confidence: 0.7,
+                reason: `Based on your RIASEC profile (${
+                  riasecScores?.top3 || "N/A"
+                })`,
+                next_steps: [
+                  "Research this career path",
+                  "Talk to professionals in this field",
+                  "Explore related opportunities",
+                ],
+              })),
+            summary:
+              parsedResponse.summary ||
+              "Based on your assessment, here are some career paths to explore.",
+            smsMessage: parsedResponse.smsMessage,
+          };
+        }
+
+        return {
+          ...parsedResponse,
+          recommendations: filteredRecommendations,
+        };
+      }
+
+      return parsedResponse;
     } catch (error: any) {
       console.error("Error generating recommendations:", error);
 
@@ -303,7 +446,15 @@ Respond with JSON {"reply":"...", "intent":"follow_up"}.`;
     }
   }
 
-  private buildRecommendationPrompt(assessment: AssessmentPayload): string {
+  private buildRecommendationPrompt(
+    assessment: AssessmentPayload,
+    riasecScores?: {
+      scores: { [code: string]: number };
+      top3: string;
+      ordered: Array<{ code: string; score: number }>;
+    } | null,
+    matchingCareers?: string[]
+  ): string {
     const lang = assessment.userProfile.language;
     const systemPrompt = this.getSystemPrompt(lang, "recommendation");
 
@@ -314,15 +465,71 @@ Respond with JSON {"reply":"...", "intent":"follow_up"}.`;
     }
     assessmentSummary += `\n\nAssessment Results:\n`;
 
-    assessment.tests.forEach((test) => {
-      assessmentSummary += `\n${test.type.toUpperCase()} Test:\n`;
-      Object.entries(test.answers).forEach(([qId, answer]) => {
-        const answerStr = Array.isArray(answer) ? answer.join(", ") : answer;
-        assessmentSummary += `Q${qId}: ${answerStr}\n`;
+    // Add RIASEC scores if available
+    if (riasecScores) {
+      assessmentSummary += `\nRIASEC Personality Assessment Results:\n`;
+      assessmentSummary += `Top 3 RIASEC Codes: ${riasecScores.top3}\n`;
+      assessmentSummary += `RIASEC Scores:\n`;
+      riasecScores.ordered.forEach(({ code, score }) => {
+        assessmentSummary += `  ${code}: ${score.toFixed(1)}%\n`;
       });
+
+      if (matchingCareers && matchingCareers.length > 0) {
+        assessmentSummary += `\nMatching Careers from RIASEC Analysis (${matchingCareers.length} total):\n`;
+        assessmentSummary += `IMPORTANT: You MUST select careers ONLY from this list below:\n\n`;
+        // Include all careers (or first 100 if too many to avoid prompt being too long)
+        const maxCareersToShow = 100;
+        const careersToInclude = matchingCareers.slice(0, maxCareersToShow);
+        careersToInclude.forEach((career, idx) => {
+          assessmentSummary += `  ${idx + 1}. ${career}\n`;
+        });
+        if (matchingCareers.length > maxCareersToShow) {
+          assessmentSummary += `  ... and ${
+            matchingCareers.length - maxCareersToShow
+          } more careers\n`;
+          assessmentSummary += `  (Note: Only showing first ${maxCareersToShow} careers due to length, but you must use exact names from the full list)\n`;
+        }
+        assessmentSummary += `\nREMINDER: You can ONLY recommend careers from the list above. Do not suggest any other careers.\n`;
+      }
+    }
+
+    // Add test responses
+    assessment.tests.forEach((test) => {
+      if (test.type === "riasec") {
+        // Skip detailed RIASEC answers since we have the scores
+        assessmentSummary += `\nRIASEC Test: Completed (see scores above)\n`;
+      } else {
+        assessmentSummary += `\n${test.type.toUpperCase()} Test:\n`;
+        Object.entries(test.answers).forEach(([qId, answer]) => {
+          const answerStr = Array.isArray(answer) ? answer.join(", ") : answer;
+          assessmentSummary += `Q${qId}: ${answerStr}\n`;
+        });
+      }
     });
 
-    return `${systemPrompt}\n\n${assessmentSummary}\n\nGenerate recommendations now:`;
+    // Build instruction for LLM
+    let instruction = `\n\n=== CRITICAL INSTRUCTIONS ===\n`;
+    if (matchingCareers && matchingCareers.length > 0) {
+      instruction += `You MUST ONLY recommend careers from the "Matching Careers from RIASEC Analysis" list above.\n`;
+      instruction += `You have ${matchingCareers.length} careers to choose from. DO NOT invent, suggest, or recommend any careers that are NOT in that numbered list.\n\n`;
+      instruction += `STEP 1: Look at the numbered list of careers above (lines starting with numbers like "1.", "2.", etc.)\n`;
+      instruction += `STEP 2: From that list, select 4-5 careers that best match the student's values test responses and personal information\n`;
+      instruction += `STEP 3: For each selected career, use the EXACT career name as it appears in the numbered list\n`;
+      instruction += `STEP 4: Generate recommendations ONLY for those selected careers\n\n`;
+      instruction += `FORBIDDEN: Do NOT recommend careers like "Chef", "Food Scientist", "Historian", "Archaeologist" or any other careers UNLESS they appear in the numbered list above.\n`;
+      instruction += `If you cannot find a suitable career in the list, you must still only recommend careers from that list.\n\n`;
+    }
+    instruction += `Each recommendation must include:\n`;
+    instruction += `- Career title (EXACT name from the numbered list above - copy it exactly)\n`;
+    instruction += `- Why this career fits (based on RIASEC codes ${
+      riasecScores ? `(${riasecScores.top3})` : ""
+    }, values test responses, and personal information)\n`;
+    instruction += `- Next steps to pursue this career\n`;
+    instruction += `- Confidence/match percentage\n\n`;
+    instruction += `Remember: Only use career names from the numbered list. No exceptions.\n\n`;
+    instruction += `Generate recommendations now:`;
+
+    return `${systemPrompt}\n\n${assessmentSummary}${instruction}`;
   }
 
   private parseRecommendationResponse(
@@ -413,8 +620,8 @@ Respond with JSON {"reply":"...", "intent":"follow_up"}.`;
 
     // Analyze each test
     assessment.tests.forEach((test) => {
-      if (test.type === "aptitude") {
-        // Analyze aptitude answers
+      if (test.type === "riasec") {
+        // Analyze RIASEC answers
         Object.values(test.answers).forEach((answer) => {
           const answerStr = Array.isArray(answer)
             ? answer.join(" ")
@@ -937,315 +1144,6 @@ Respond with JSON {"reply":"...", "intent":"follow_up"}.`;
       recommendations,
       summary: summaries[language] || summaries.en,
     };
-  }
-
-  // Keep old static fallback as backup (not used anymore but kept for reference)
-  private getStaticFallbackRecommendations(
-    language: Language
-  ): AssessmentResponse {
-    const fallbacks: Record<Language, AssessmentResponse> = {
-      en: {
-        recommendations: [
-          {
-            title: "Software Developer",
-            confidence: 0.75,
-            reason:
-              "Technology careers offer great opportunities for problem-solving and creativity",
-            next_steps: [
-              "Learn programming basics (Python or JavaScript)",
-              "Build small projects",
-              "Take computer science courses",
-            ],
-          },
-          {
-            title: "Data Analyst",
-            confidence: 0.72,
-            reason:
-              "Data-driven careers combine analytical thinking with real-world impact",
-            next_steps: [
-              "Learn statistics and data visualization",
-              "Practice with Excel and data tools",
-              "Explore data science courses",
-            ],
-          },
-          {
-            title: "Engineering",
-            confidence: 0.7,
-            reason:
-              "Engineering offers diverse paths in various fields like mechanical, electrical, or civil",
-            next_steps: [
-              "Focus on math and science subjects",
-              "Join engineering clubs or competitions",
-              "Research different engineering disciplines",
-            ],
-          },
-          {
-            title: "Business & Management",
-            confidence: 0.68,
-            reason:
-              "Business careers develop leadership and strategic thinking skills",
-            next_steps: [
-              "Learn about economics and finance",
-              "Join business clubs or competitions",
-              "Develop communication and teamwork skills",
-            ],
-          },
-        ],
-        summary:
-          "Based on your assessment, we've identified several exciting career paths. Explore these options to find what interests you most!",
-      },
-      hi: {
-        recommendations: [
-          {
-            title: "सॉफ्टवेयर डेवलपर",
-            confidence: 0.75,
-            reason:
-              "तकनीकी करियर समस्या-समाधान और रचनात्मकता के लिए बेहतरीन अवसर प्रदान करते हैं",
-            next_steps: [
-              "प्रोग्रामिंग की मूल बातें सीखें (Python या JavaScript)",
-              "छोटी परियोजनाएं बनाएं",
-              "कंप्यूटर विज्ञान पाठ्यक्रम लें",
-            ],
-          },
-          {
-            title: "डेटा विश्लेषक",
-            confidence: 0.72,
-            reason:
-              "डेटा-संचालित करियर विश्लेषणात्मक सोच को वास्तविक दुनिया के प्रभाव के साथ जोड़ते हैं",
-            next_steps: [
-              "सांख्यिकी और डेटा विज़ुअलाइज़ेशन सीखें",
-              "Excel और डेटा टूल्स के साथ अभ्यास करें",
-              "डेटा साइंस पाठ्यक्रमों का अन्वेषण करें",
-            ],
-          },
-          {
-            title: "इंजीनियरिंग",
-            confidence: 0.7,
-            reason:
-              "इंजीनियरिंग यांत्रिक, विद्युत, या सिविल जैसे विभिन्न क्षेत्रों में विविध पथ प्रदान करती है",
-            next_steps: [
-              "गणित और विज्ञान विषयों पर ध्यान दें",
-              "इंजीनियरिंग क्लब या प्रतियोगिताओं में शामिल हों",
-              "विभिन्न इंजीनियरिंग विषयों पर शोध करें",
-            ],
-          },
-          {
-            title: "व्यवसाय और प्रबंधन",
-            confidence: 0.68,
-            reason: "व्यवसाय करियर नेतृत्व और रणनीतिक सोच कौशल विकसित करते हैं",
-            next_steps: [
-              "अर्थशास्त्र और वित्त के बारे में जानें",
-              "व्यवसाय क्लब या प्रतियोगिताओं में शामिल हों",
-              "संचार और टीमवर्क कौशल विकसित करें",
-            ],
-          },
-        ],
-        summary:
-          "आपके मूल्यांकन के आधार पर, हमने कई रोमांचक करियर पथों की पहचान की है। अपनी रुचि के अनुसार इन विकल्पों का अन्वेषण करें!",
-      },
-      te: {
-        recommendations: [
-          {
-            title: "సాఫ్ట్‌వేర్ డెవలపర్",
-            confidence: 0.75,
-            reason:
-              "టెక్నాలజీ కెరీర్లు సమస్య-పరిష్కారం మరియు సృజనాత్మకతకు గొప్ప అవకాశాలను అందిస్తాయి",
-            next_steps: [
-              "ప్రోగ్రామింగ్ ప్రాథమికాలు నేర్చుకోండి (Python లేదా JavaScript)",
-              "చిన్న ప్రాజెక్ట్‌లను నిర్మించండి",
-              "కంప్యూటర్ సైన్స్ కోర్సులు తీసుకోండి",
-            ],
-          },
-          {
-            title: "డేటా విశ్లేషకుడు",
-            confidence: 0.72,
-            reason:
-              "డేటా-ఆధారిత కెరీర్లు విశ్లేషణాత్మక ఆలోచనను వాస్తవ ప్రపంచ ప్రభావంతో కలుపుతాయి",
-            next_steps: [
-              "గణాంకాలు మరియు డేటా విజువలైజేషన్ నేర్చుకోండి",
-              "Excel మరియు డేటా టూల్స్‌తో ప్రాక్టీస్ చేయండి",
-              "డేటా సైన్స్ కోర్సులను అన్వేషించండి",
-            ],
-          },
-          {
-            title: "ఇంజనీరింగ్",
-            confidence: 0.7,
-            reason:
-              "ఇంజనీరింగ్ మెకానికల్, ఎలక్ట్రికల్, లేదా సివిల్ వంటి వివిధ రంగాలలో వివిధ మార్గాలను అందిస్తుంది",
-            next_steps: [
-              "గణితం మరియు సైన్స్ విషయాలపై దృష్టి పెట్టండి",
-              "ఇంజనీరింగ్ క్లబ్‌లు లేదా పోటీలలో చేరండి",
-              "వివిధ ఇంజనీరింగ్ విభాగాలపై పరిశోధన చేయండి",
-            ],
-          },
-          {
-            title: "వ్యాపారం మరియు నిర్వహణ",
-            confidence: 0.68,
-            reason:
-              "వ్యాపార కెరీర్లు నాయకత్వం మరియు వ్యూహాత్మక ఆలోచన నైపుణ్యాలను అభివృద్ధి చేస్తాయి",
-            next_steps: [
-              "ఆర్థికశాస్త్రం మరియు ఫైనాన్స్ గురించి తెలుసుకోండి",
-              "వ్యాపార క్లబ్‌లు లేదా పోటీలలో చేరండి",
-              "కమ్యూనికేషన్ మరియు టీమ్‌వర్క్ నైపుణ్యాలను అభివృద్ధి చేయండి",
-            ],
-          },
-        ],
-        summary:
-          "మీ అసెస్‌మెంట్ ఆధారంగా, మేము అనేక ఉత్తేజకరమైన కెరీర్ మార్గాలను గుర్తించాము. మీకు ఆసక్తి ఉన్న వాటిని కనుగొనడానికి ఈ ఎంపికలను అన్వేషించండి!",
-      },
-      ta: {
-        recommendations: [
-          {
-            title: "மென்பொருள் உருவாக்குநர்",
-            confidence: 0.75,
-            reason:
-              "தொழில்நுட்ப தொழில்கள் சிக்கல் தீர்ப்பு மற்றும் படைப்பாற்றலுக்கு சிறந்த வாய்ப்புகளை வழங்குகின்றன",
-            next_steps: [
-              "நிரலாக்க அடிப்படைகளைக் கற்றுக்கொள்ளுங்கள் (Python அல்லது JavaScript)",
-              "சிறிய திட்டங்களை உருவாக்குங்கள்",
-              "கணினி அறிவியல் படிப்புகளை எடுத்துக்கொள்ளுங்கள்",
-            ],
-          },
-          {
-            title: "தரவு பகுப்பாய்வாளர்",
-            confidence: 0.72,
-            reason:
-              "தரவு-ஆதார தொழில்கள் பகுப்பாய்வு சிந்தனையை உண்மையான உலக தாக்கத்துடன் இணைக்கின்றன",
-            next_steps: [
-              "புள்ளிவிவரங்கள் மற்றும் தரவு காட்சிப்படுத்தலைக் கற்றுக்கொள்ளுங்கள்",
-              "Excel மற்றும் தரவு கருவிகளுடன் பயிற்சி செய்யுங்கள்",
-              "தரவு அறிவியல் படிப்புகளை ஆராயுங்கள்",
-            ],
-          },
-          {
-            title: "பொறியியல்",
-            confidence: 0.7,
-            reason:
-              "பொறியியல் இயந்திர, மின் அல்லது குடிசார் போன்ற பல்வேறு துறைகளில் பல்வேறு பாதைகளை வழங்குகிறது",
-            next_steps: [
-              "கணிதம் மற்றும் அறிவியல் பாடங்களில் கவனம் செலுத்துங்கள்",
-              "பொறியியல் கழகங்கள் அல்லது போட்டிகளில் சேரவும்",
-              "வெவ்வேறு பொறியியல் துறைகளை ஆராயுங்கள்",
-            ],
-          },
-          {
-            title: "வணிகம் மற்றும் மேலாண்மை",
-            confidence: 0.68,
-            reason:
-              "வணிக தொழில்கள் தலைமைத்துவம் மற்றும் உத்தியியல் சிந்தனை திறன்களை வளர்க்கின்றன",
-            next_steps: [
-              "பொருளாதாரம் மற்றும் நிதி பற்றி அறிக",
-              "வணிக கழகங்கள் அல்லது போட்டிகளில் சேரவும்",
-              "தொடர்பு மற்றும் குழு பணி திறன்களை வளர்த்துக் கொள்ளுங்கள்",
-            ],
-          },
-        ],
-        summary:
-          "உங்கள் மதிப்பீட்டின் அடிப்படையில், பல சுவாரஸ்யமான தொழில் பாதைகளை நாங்கள் கண்டறிந்துள்ளோம். உங்கள் ஆர்வத்தைக் கண்டறிய இந்த விருப்பங்களை ஆராயுங்கள்!",
-      },
-      bn: {
-        recommendations: [
-          {
-            title: "সফটওয়্যার ডেভেলপার",
-            confidence: 0.75,
-            reason:
-              "প্রযুক্তি ক্যারিয়ার সমস্যা সমাধান এবং সৃজনশীলতার জন্য দুর্দান্ত সুযোগ প্রদান করে",
-            next_steps: [
-              "প্রোগ্রামিং বেসিক শিখুন (Python বা JavaScript)",
-              "ছোট প্রজেক্ট তৈরি করুন",
-              "কম্পিউটার সায়েন্স কোর্স নিন",
-            ],
-          },
-          {
-            title: "ডেটা অ্যানালিস্ট",
-            confidence: 0.72,
-            reason:
-              "ডেটা-চালিত ক্যারিয়ার বিশ্লেষণাত্মক চিন্তাভাবনাকে বাস্তব বিশ্বের প্রভাবের সাথে যুক্ত করে",
-            next_steps: [
-              "পরিসংখ্যান এবং ডেটা ভিজ্যুয়ালাইজেশন শিখুন",
-              "Excel এবং ডেটা টুলস দিয়ে অনুশীলন করুন",
-              "ডেটা সায়েন্স কোর্স অন্বেষণ করুন",
-            ],
-          },
-          {
-            title: "ইঞ্জিনিয়ারিং",
-            confidence: 0.7,
-            reason:
-              "ইঞ্জিনিয়ারিং যান্ত্রিক, বৈদ্যুতিক বা সিভিলের মতো বিভিন্ন ক্ষেত্রে বৈচিত্র্যময় পথ প্রদান করে",
-            next_steps: [
-              "গণিত এবং বিজ্ঞান বিষয়ে ফোকাস করুন",
-              "ইঞ্জিনিয়ারিং ক্লাব বা প্রতিযোগিতায় যোগ দিন",
-              "বিভিন্ন ইঞ্জিনিয়ারিং শাখা নিয়ে গবেষণা করুন",
-            ],
-          },
-          {
-            title: "ব্যবসা ও ব্যবস্থাপনা",
-            confidence: 0.68,
-            reason:
-              "ব্যবসা ক্যারিয়ার নেতৃত্ব এবং কৌশলগত চিন্তাভাবনার দক্ষতা বিকাশ করে",
-            next_steps: [
-              "অর্থনীতি এবং অর্থসংস্থান সম্পর্কে জানুন",
-              "ব্যবসা ক্লাব বা প্রতিযোগিতায় যোগ দিন",
-              "যোগাযোগ এবং টিমওয়ার্ক দক্ষতা বিকাশ করুন",
-            ],
-          },
-        ],
-        summary:
-          "আপনার মূল্যায়নের ভিত্তিতে, আমরা বেশ কয়েকটি উত্তেজনাপূর্ণ ক্যারিয়ার পথ চিহ্নিত করেছি। আপনার আগ্রহ খুঁজে পেতে এই বিকল্পগুলি অন্বেষণ করুন!",
-      },
-      gu: {
-        recommendations: [
-          {
-            title: "સોફ્ટવેર ડેવલપર",
-            confidence: 0.75,
-            reason:
-              "ટેક્નોલોજી કારકિર્દી સમસ્યા-ઉકેલ અને સર્જનાત્મકતા માટે મહાન તકો પ્રદાન કરે છે",
-            next_steps: [
-              "પ્રોગ્રામિંગ મૂળભૂત જાણો (Python અથવા JavaScript)",
-              "નાના પ્રોજેક્ટ બનાવો",
-              "કમ્પ્યુટર સાયન્સ કોર્સ લો",
-            ],
-          },
-          {
-            title: "ડેટા એનાલિસ્ટ",
-            confidence: 0.72,
-            reason:
-              "ડેટા-ચાલિત કારકિર્દી વિશ્લેષણાત્મક વિચારસરણીને વાસ્તવિક વિશ્વના પ્રભાવ સાથે જોડે છે",
-            next_steps: [
-              "આંકડાશાસ્ત્ર અને ડેટા વિઝ્યુઅલાઇઝેશન શીખો",
-              "Excel અને ડેટા ટૂલ્સ સાથે પ્રેક્ટિસ કરો",
-              "ડેટા સાયન્સ કોર્સ અન્વેષણ કરો",
-            ],
-          },
-          {
-            title: "એન્જિનિયરિંગ",
-            confidence: 0.7,
-            reason:
-              "એન્જિનિયરિંગ મિકેનિકલ, ઇલેક્ટ્રિકલ અથવા સિવિલ જેવા વિવિધ ક્ષેત્રોમાં વિવિધ માર્ગો પ્રદાન કરે છે",
-            next_steps: [
-              "ગણિત અને વિજ્ઞાન વિષયો પર ધ્યાન કેન્દ્રિત કરો",
-              "એન્જિનિયરિંગ ક્લબ અથવા સ્પર્ધાઓમાં જોડાઓ",
-              "વિવિધ એન્જિનિયરિંગ શાખાઓ પર સંશોધન કરો",
-            ],
-          },
-          {
-            title: "વ્યવસાય અને વ્યવસ્થાપન",
-            confidence: 0.68,
-            reason:
-              "વ્યવસાય કારકિર્દી નેતૃત્વ અને વ્યૂહાત્મક વિચારસરણી કુશળતા વિકસાવે છે",
-            next_steps: [
-              "અર્થશાસ્ત્ર અને નાણાં વિશે જાણો",
-              "વ્યવસાય ક્લબ અથવા સ્પર્ધાઓમાં જોડાઓ",
-              "સંચાર અને ટીમવર્ક કુશળતા વિકસાવો",
-            ],
-          },
-        ],
-        summary:
-          "તમારા મૂલ્યાંકનના આધારે, અમે અનેક રોમાંચક કારકિર્દી માર્ગો ઓળખ્યા છે. તમારી રુચિ શોધવા માટે આ વિકલ્પોનું અન્વેષણ કરો!",
-      },
-    };
-
-    return fallbacks[language] || fallbacks.en;
   }
 
   async generateChatResponse(
