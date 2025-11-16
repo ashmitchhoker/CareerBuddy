@@ -1,0 +1,1630 @@
+import React, { useState, useEffect } from "react";
+import { ArrowLeft, Save, Send, CheckCircle, Zap } from "lucide-react";
+import { Button } from "./ui/button";
+import { Card, CardContent } from "./ui/card";
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+import { Checkbox } from "./ui/checkbox";
+import { Textarea } from "./ui/textarea";
+import { Label } from "./ui/label";
+import { Progress } from "./ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
+import { LanguageSelector } from "./LanguageSelector";
+import { assessmentService } from "../services/assessmentService";
+import { toast } from "sonner";
+import type {
+  Page,
+  UserProfile,
+  TestType,
+  SavedAssessment,
+  Language,
+} from "../App";
+
+interface TestFormPageProps {
+  userProfile: UserProfile;
+  setUserProfile: (profile: UserProfile) => void;
+  testType: TestType;
+  navigateTo: (page: Page) => void;
+  savedAssessment: SavedAssessment | null;
+  setSavedAssessment: (assessment: SavedAssessment | null) => void;
+  completeTest: (testType: TestType) => void;
+  currentTestIndex: number;
+  totalTests: number;
+  onTestComplete?: (
+    testType: TestType,
+    answers: { [key: number]: string | string[] }
+  ) => void;
+}
+
+const commonOptions = {
+  en: ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
+  hi: ["बिल्कुल असहमत", "असहमत", "तटस्थ", "सहमत", "पूर्णतः सहमत"],
+  te: [
+    "పూర్తిగా అంగీకరించను",
+    "అంగీకరించను",
+    "తటస్థ",
+    "అంగీకరిస్తున్నాను",
+    "పూర్తిగా అంగీకరిస్తున్నాను",
+  ],
+  ta: [
+    "முற்றிலும் மறுக்கிறேன்",
+    "மறுக்கிறேன்",
+    "நடுநிலை",
+    "ஒப்புக்கொள்கிறேன்",
+    "முற்றிலும் ஒப்புக்கொள்கிறேன்",
+  ],
+  bn: ["সম্পূর্ণ অসম্মত", "অসম্মত", "নিরপেক্ষ", "সম্মত", "সম্পূর্ণ সম্মত"],
+  gu: ["સંપૂર્ણ અસહમત", "અસહમત", "તટસ્થ", "સહમત", "સંપૂર્ણ સહમત"],
+};
+
+const testQuestions = {
+  aptitude: [
+    {
+      id: 1,
+      question: {
+        en: "I like looking at numbers or information before deciding what to do.",
+        hi: "मुझे कुछ करने से पहले जानकारी या संख्या देखना पसंद है।",
+        te: "ఏదైనా చేయడానికి ముందు సమాచారం లేదా సంఖ్యలను చూడటం నాకు ఇష్టం.",
+        ta: "ஏதாவது செய்வதற்கு முன் தகவல் அல்லது எண்களைப் பார்க்க நான் விரும்புகிறேன்.",
+        bn: "আমি কিছু করার আগে তথ্য বা সংখ্যা দেখতে পছন্দ করি।",
+        gu: "હું કંઈક કરું તે પહેલાં માહિતી અથવા આંકડા જોવાનું પસંદ કરું છું.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 2,
+      question: {
+        en: "I find it difficult to make arguments using facts and logic.",
+        hi: "मुझे तथ्यों और तर्क का उपयोग करके तर्क देना कठिन लगता है।",
+        te: "నిజాలు మరియు తర్కాన్ని ఉపయోగించి వాదించడం నాకు కష్టం.",
+        ta: "உண்மைகள் மற்றும் தர்க்கத்தைப் பயன்படுத்தி வாதிடுவது எனக்கு கடினம்.",
+        bn: "তথ্য ও যুক্তি ব্যবহার করে তর্ক করা আমার কাছে কঠিন।",
+        gu: "મને હકીકતો અને તર્કનો ઉપયોગ કરીને દલીલ કરવી મુશ્કેલ લાગે છે.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 3,
+      question: {
+        en: "I enjoy learning through hands-on practice.",
+        hi: "मुझे हाथों से अभ्यास करके सीखना अच्छा लगता है।",
+        te: "చేతులతో ప్రాక్టీస్ చేస్తూ నేర్చుకోవడం నాకు ఇష్టం.",
+        ta: "கைகளைப் பயன்படுத்தி பயிற்சி மூலம் கற்றுக்கொள்வதில் நான் மகிழ்ச்சி அடைகிறேன்.",
+        bn: "আমি হাতে-কলমে অনুশীলনের মাধ্যমে শিখতে উপভোগ করি।",
+        gu: "મને હાથ વડે પ્રેક્ટિસ કરીને શીખવાનું ગમે છે.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 4,
+      question: {
+        en: "I feel shy or nervous when I have to speak in front of my class or a group of people.",
+        hi: "जब मुझे अपनी कक्षा या लोगों के सामने बोलना होता है तो मैं शर्म या घबराहट महसूस करता हूँ।",
+        te: "తరగతి లేదా జనాల ముందు మాట్లాడాల్సి వస్తే నాకు సిగ్గు లేదా టెన్షన్‌గా ఉంటుంది.",
+        ta: "என் வகுப்பில் அல்லது மக்களின் முன் பேச வேண்டிய போது எனக்கு வெட்கமாகவும் பதட்டமாகவும் இருக்கும்.",
+        bn: "আমাকে ক্লাসে বা মানুষের সামনে কথা বলতে হলে আমি লজ্জা বা নার্ভাস বোধ করি।",
+        gu: "જ્યારે મને વર્ગમાં અથવા લોકો સામે બોલવું પડે છે ત્યારે મને શરમ અથવા ગભરામણ લાગે છે.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 5,
+      question: {
+        en: "It is difficult for me to write my ideas clearly.",
+        hi: "मेरे लिए अपने विचार साफ़-साफ़ लिखना कठिन है।",
+        te: "నా ఆలోచనలను స్పష్టంగా వ్రాయడం నాకు కష్టం.",
+        ta: "என் எண்ணங்களை தெளிவாக எழுதுவது எனக்கு கடினம்.",
+        bn: "আমার জন্য নিজের ভাবনাগুলো স্পষ্টভাবে লেখা কঠিন।",
+        gu: "મારા માટે મારા વિચારો સ્પષ્ટ રીતે લખવા મુશ્કેલ છે.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 6,
+      question: {
+        en: "I can do math in my head easily.",
+        hi: "मैं अपने दिमाग में आसानी से गणित कर सकता/सकती हूं।",
+        te: "నేను నా మనసులో సులభంగా గణితం చేయగలను.",
+        ta: "நான் என் மனதில் எளிதாக கணக்குகள் செய்ய முடியும்.",
+        bn: "আমি সহজেই মনে মনে অঙ্ক করতে পারি।",
+        gu: "હું મારા મનમાં સરળતાથી ગણિત કરી શકું છું.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 7,
+      question: {
+        en: "I like group discussions and sharing my ideas.",
+        hi: "मुझे समूह चर्चा और अपने विचार साझा करना पसंद है।",
+        te: "నాకు గ్రూప్ చర్చలు మరియు నా ఆలోచనలను పంచుకోవడం ఇష్టం.",
+        ta: "குழு விவாதங்களும் என் எண்ணங்களைப் பகிர்வதும் எனக்கு பிடிக்கும்.",
+        bn: "আমি দলগত আলোচনা এবং আমার ধারণা ভাগ করে নিতে পছন্দ করি।",
+        gu: "મને જૂથ ચર્ચાઓ અને મારા વિચારો શેર કરવા ગમે છે.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 8,
+      question: {
+        en: "I avoid tasks that need creative thinking.",
+        hi: "मैं उन कार्यों से बचता/बचती हूं जिनमें रचनात्मक सोच की आवश्यकता होती है।",
+        te: "సృజనాత్మక ఆలోచన అవసరమైన పనులను నేను దూరంగా ఉంచుతాను.",
+        ta: "படைப்பாற்றல் சிந்தனை தேவைப்படும் பணிகளை நான் தவிர்க்கிறேன்.",
+        bn: "আমি এমন কাজ এড়িয়ে চলি যেগুলিতে সৃজনশীল চিন্তা প্রয়োজন।",
+        gu: "હું સર્જનાત્મક વિચારસરણીની જરૂર હોય તેવા કાર્યોને ટાળું છું.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 9,
+      question: {
+        en: "I like to do things in the same way every time.",
+        hi: "मुझे हर बार चीजें एक ही तरीके से करना पसंद है।",
+        te: "ప్రతి సారి పనులను ఒకే విధంగా చేయడం నాకు ఇష్టం.",
+        ta: "ஒவ்வொரு முறையும் ஒரே விதமாகச் செய்வது எனக்கு பிடிக்கும்.",
+        bn: "আমি প্রতিবার একইভাবে কাজ করতে পছন্দ করি।",
+        gu: "મને દરેક વખતે વસ્તુઓ એકસરખી રીતે કરવી ગમે છે.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 10,
+      question: {
+        en: "I find it hard to imagine turning things around to solve problems.",
+        hi: "मुझे समस्याओं को हल करने के लिए चीजों को उलटने की कल्पना करना कठिन लगता है।",
+        te: "సమస్యలను పరిష్కరించడానికి వేరే కోణంలో చూడడం నాకు కష్టం.",
+        ta: "பிரச்சனைகளை தீர்க்க விஷயங்களை வேறு வழியில் சிந்திப்பது எனக்கு கடினம்.",
+        bn: "সমস্যা সমাধানের জন্য জিনিসগুলিকে উল্টে ভাবা আমার জন্য কঠিন।",
+        gu: "સમસ્યાઓ ઉકેલવા માટે વસ્તુઓને બીજી રીતે જોવાની કલ્પના કરવી મને મુશ્કેલ લાગે છે.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 11,
+      question: {
+        en: "I find it difficult to read maps and understand directions.",
+        hi: "मुझे नक्शे पढ़ने और दिशाओं को समझने में कठिनाई होती है।",
+        te: "మ్యాప్‌లు చదవడం మరియు దిశలను అర్థం చేసుకోవడం నాకు కష్టం.",
+        ta: "வரைபடங்களைப் படித்து திசைகளைப் புரிந்துகொள்வது எனக���கு கடினம்.",
+        bn: "আমি মানচিত্র পড়া এবং দিকনির্দেশনা বোঝা কঠিন মনে করি।",
+        gu: "મને નકશા વાંચવા અને દિશાઓ સમજવી મુશ્કેલ લાગે છે.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 12,
+      question: {
+        en: "I can easily understand how others feel.",
+        hi: "मैं आसानी से समझ सकता/सकती हूं कि अन्य लोग कैसा महसूस करते हैं।",
+        te: "ఇతరులు ఎలా ఫీల్ అవుతున్నారో నేను సులభంగా అర్థం చేసుకోగలను.",
+        ta: "மற்றவர்கள் எப்படி உணர்கிறார்கள் என்பதை நான் எளிதாக புரிந்துகொள்ள முடியும்.",
+        bn: "আমি সহজেই বুঝতে পারি অন্যরা কেমন অনুভব করছে।",
+        gu: "હું સરળતાથી સમજી શકું છું કે અન્ય લોકો કેવું અનુભવે છે.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 13,
+      question: {
+        en: "Making and keeping friends is hard for me.",
+        hi: "दोस्ती करना और निभाना मेरे लिए कठिन है।",
+        te: "స్నేహితులను సంపాదించడం మరియు కొనసాగించడం నాకు కష్టం.",
+        ta: "நண்பர்களை உருவாக்கி வைத்திருப்பது எனக்கு கடினம்.",
+        bn: "বন্ধুত্ব করা এবং বজায় রাখা আমার জন্য কঠিন।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 14,
+      question: {
+        en: "I work well in a team and listen to others.",
+        hi: "मैं टीम में अच्छी तरह काम करता/करती हूं और दूसरों की बात सुनता/सुनती हूं।",
+        te: "నేను టీమ్‌లో బాగా పనిచేస్తాను మరియు ఇతరుల మాట వింటాను.",
+        ta: "நான் குழுவில் நன்றாக வேலை செய்கிறேன் மற்றும் பிறரின் கருத்துக்களை கேட்கிறேன்.",
+        bn: "আমি দলে ভালোভাবে কাজ করি এবং অন্যদের কথা শুনি।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 15,
+      question: {
+        en: "I can quickly learn how to use a new phone or app.",
+        hi: "मैं जल्दी से सीख सकता हूँ कि नया फोन या ऐप कैसे इस्तेमाल करें।",
+        te: "కొత్త ఫోన్ లేదా యాప్‌ను ఎలా ఉపయోగించాలో నేను త్వరగా నేర్చుకోగలను.",
+        ta: "புதிய தொலைபேசி அல்லது செயலியை எப்படி பயன்படுத்துவது என்பதை நான் விரைவாகக் கற்றுக்கொள்கிறேன்.",
+        bn: "আমি দ্রুত শিখতে পারি কীভাবে একটি নতুন ফোন বা অ্যাপ ব্যবহার করতে হয়।",
+        gu: "હું ઝડપથી શીખી શકું છું કે નવો ફોન અથવા એપ કેવી રીતે વાપરવી.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 16,
+      question: {
+        en: "I easily understand how machines and systems work.",
+        hi: "मैं आसानी से समझ जाता/जाती हूं कि मशीनें और सिस्टम कैसे काम करते हैं।",
+        te: "యంత్రాలు మరియు వ్యవస్థలు ఎలా పనిచేస్తాయో నేను సులభంగా అర్థం చేసుకోగలను.",
+        ta: "இயந்திரங்களும் அமைப்புகளும் எவ்வாறு செயல்படுகின்றன என்பதை நான் எளிதாக புரிந்துகொள்கிறேன்.",
+        bn: "আমি সহজেই বুঝতে পারি মেশিন ও সিস্টেম কীভাবে কাজ করে।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 17,
+      question: {
+        en: "My friends and family often ask me to help with phone or technological problems.",
+        hi: "मेरे दोस्त और परिवार वाले अक्सर मुझसे फोन या तकनीकी समस्याओं में मदद मांगते हैं।",
+        te: "నా స్నేహితులు మరియు కుటుంబ సభ్యులు తరచుగా ఫోన్ లేదా టెక్ సమస్యలలో సహాయం అడుగుతారు.",
+        ta: "என் நண்பர்களும் குடும்பத்தினரும் அடிக்கடி தொலைபேசி அல்லது தொழில்நுட்ப பிரச்சினைகளுக்கு எனது உதவியை கேட்கிறார்கள்.",
+        bn: "আমার বন্ধু এবং পরিবার প্রায়ই ফোন বা প্রযুক্তিগত সমস্যায় আমার সাহায্য চায়।",
+        gu: "મારા મિત્રો અને પરિવારજનો ઘણીવાર ફોન અથવા ટેકનીકલ સમસ્યામાં મારી મદદ માંગે છે.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 18,
+      question: {
+        en: "I keep my things and home neat and clean.",
+        hi: "मैं अपनी चीज़ें और घर साफ़-सुथरा रखता/रखती हूँ।",
+        te: "నేను నా వస్తువులు మరియు ఇంటిని శుభ్రంగా ఉంచుతాను.",
+        ta: "நான் என் பொருட்களையும் வீட்டையும் சுத்தமாக வைத்திருக்கிறேன்.",
+        bn: "আমি আমার জিনিসপত্র এবং বাড়ি পরিষ্কার-পরিচ্ছন্ন রাখি।",
+        gu: "હું મારી વસ્તુઓ અને ઘર સ્વચ્છ અને ગોઠવેલું રાખું છું.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 19,
+      question: {
+        en: "I do not like creating systems to keep track of information or tasks.",
+        hi: "मुझे जानकारी या कार्यों का ट्रैक रखने के लिए सिस्टम बनाना पसंद नहीं है।",
+        te: "సమాచారం లేదా పనులను ట్రాక్ చేయడానికి సిస్టమ్‌లను సృష్టించడం నాకు ఇష్టం లేదు.",
+        ta: "தகவல் அல்லது பணிகளை கண்காணிக்க அமைப்புகளை உருவாக்குவது எனக்கு பிடிக்காது.",
+        bn: "আমি তথ্য বা কাজ ট্র্যাক করার জন্য সিস্টেম তৈরি করতে পছন্দ করি না।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 20,
+      question: {
+        en: "I rarely think about new business ideas.",
+        hi: "मैं शायद ही कभी नए व्यापारिक विचारों के बारे में सोचता/सोचती हूं।",
+        te: "కొత్త వ్యాపార ఆలోచనల గురించి నేను అరుదుగా ఆలోచిస్తాను.",
+        ta: "புதிய வணிகக் கருத்துக்கள் குறித்து நான் அரிதாகவே சிந்திப்பேன்.",
+        bn: "আমি খুব কমই নতুন ব্যবসায়িক ধারণা নিয়ে ভাবি।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 21,
+      question: {
+        en: "I feel okay taking risks to start something new.",
+        hi: "कुछ नया शुरू करने के लिए जोखिम लेने में मुझे कोई दिक्कत नहीं होती।",
+        te: "కొత్తదాన్ని ప్రారంభించడానికి రిస్క్ తీసుకోవడం నాకు సరే అనిపిస్తుంది.",
+        ta: "புதிய ஒன்றைத் தொடங்க ஆபத்தை ஏற்க எனக்கு பரவாயில்லை.",
+        bn: "কিছু নতুন শুরু করতে ঝুঁকি নিতে আমার আপত্তি নেই।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 22,
+      question: {
+        en: "I have never begun a project or organisation by myself.",
+        hi: "मैंने कभी अपने आप कोई परियोजना या संगठन शुरू नहीं किया है।",
+        te: "నేను ఎప్పుడూ స్వయంగా ప్రాజెక్ట్ లేదా సంస్థను ప్రారంభించలేదు.",
+        ta: "நான் எனது முயற்சியில் ஒரு திட்டம் அல்லது அமைப்பை தொடங்கியதில்லை.",
+        bn: "আমি কখনও নিজের উদ্যোগে কোনও প্রকল্প বা সংগঠন শুরু করিনি।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 25,
+      question: {
+        en: "I am good at activities that need hand and eye coordination — like catching a ball or drawing neatly.",
+        hi: "मैं उन गतिविधियों में अच्छा हूँ जिनमें हाथ और आंखों का तालमेल चाहिए — जैसे गेंद पकड़ना या साफ़-सुथरा चित्र बनाना।",
+        te: "చేతి మరియు కంటి సమన్వయం అవసరమయ్యే పనుల్లో నేను బాగుంటాను — ఉదాహరణకు బంతిని పట్టడం లేదా చక్కగా గీయడం.",
+        ta: "கை மற்றும் கண் ஒருங்கிணைப்பு தேவையான செயல்களில் நான் நன்றாக இருக்கிறேன் — உதாரணமாக பந்தை பிடித்தல் அல்லது சுத்தமாக வரைவது.",
+        bn: "আমি এমন কাজগুলোতে ভালো, যেগুলিতে হাত ও চোখের সমন্বয় দরকার — যেমন বল ধরা বা সুন্দরভাবে আঁকা।",
+        gu: "હું એવી પ્રવૃત્તિઓમાં સારો છું જેમાં હાથ અને આંખનું સંકલન જરૂરી હોય છે — જેમ કે બોલ પકડવો અથવા સાફસુથરી રીતે ચિત્ર દોરવું.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 26,
+      question: {
+        en: "I like using my hands to build, craft, or repair things in the house.",
+        hi: "मुझे घर में चीज़ें बनाने, सजाने या ठीक करने के लिए अपने हाथों का इस्तेमाल करना पसंद है।",
+        te: "ఇంట్లో వస్తువులను తయారు చేయడానికి, అలంకరించడానికి లేదా బాగు చేయడానికి నా చేతులను ఉపయోగించడం నాకు ఇష్టం.",
+        ta: "வீட்டில் பொருட்களை உருவாக்க, அலங்கரிக்க அல்லது பழுது பார்க்க என் கைகளைப் பயன்படுத்துவது எனக்கு பிடிக்கும்.",
+        bn: "বাড়িতে জিনিস তৈরি করতে, সাজাতে বা মেরামত করতে আমি নিজের হাত ব্যবহার করতে পছন্দ করি।",
+        gu: "મને ઘરમાં વસ્તુઓ બનાવવી, શણગારવી અથવા દુરસ્ત કરવા માટે મારા હાથનો ઉપયોગ કરવો ગમે છે.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 27,
+      question: {
+        en: "I like to do puzzles.",
+        hi: "मुझे पहेलियाँ हल करना पसंद है।",
+        te: "నాకు పజిల్స్ పరిష్కరించడం ఇష్టం.",
+        ta: "எனக்கு புதிர்களைச் செய்வது பிடிக்கும்.",
+        bn: "আমি ধাঁধা সমাধান করতে পছন্দ করি।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 28,
+      question: {
+        en: "I like to try to influence others.",
+        hi: "मुझे दूसरों को प्रभावित करने की कोशिश करना पसंद है।",
+        te: "నాకు ఇతరులను ప్రభావితం చేయడానికి ప్రయత్నించడం ఇష్టం.",
+        ta: "மற்றவர்களைப் பாதிக்க முயற்சிப்பது எனக்கு பிடிக்கும்.",
+        bn: "আমি অন্যদের প্রভাবিত করার চেষ্টা করতে পছন্দ করি।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 29,
+      question: {
+        en: "I like to take care of animals.",
+        hi: "मुझे जानवरों की देखभाल करना पसंद है।",
+        te: "నాకు జంతువులను చూసుకోవడం ఇష్టం.",
+        ta: "விலங்குகளை பராமரிப்பது எனக்கு பிடிக்கும்.",
+        bn: "আমি প্রাণীদের যত্ন নিতে পছন্দ করি।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 30,
+      question: {
+        en: "I enjoy learning about other cultures.",
+        hi: "मुझे अन्य संस्कृतियों के बारे में जानना अच्छा लगता है।",
+        te: "నాకు ఇతర సంస్కృతుల గురించి తెలుసుకోవడం ఇష్టం.",
+        ta: "பிற கலாச்சாரங்களைப் பற்றி அறிந்து கொள்வதில் எனக்கு விருப்பம் உள்ளது.",
+        bn: "আমি অন্য সংস্কৃতি সম্পর্কে জানতে ভালোবাসি।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 31,
+      question: {
+        en: "I like to cook.",
+        hi: "मुझे खाना बनाना पसंद है।",
+        te: "నాకు వంట చేయడం ఇష్టం.",
+        ta: "எனக்கு சமைக்க விருப்பம்.",
+        bn: "আমি রান্না করতে পছন্দ করি।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 32,
+      question: {
+        en: "I like acting in plays.",
+        hi: "मुझे नाटकों में अभिनय करना पसंद है।",
+        te: "నాకు నాటకాల్లో నటించడం ఇష్టం.",
+        ta: "நாடகங்களில் நடிப்பது எனக்கு பிடிக்கும்.",
+        bn: "আমি নাটকে অভিনয় করতে পছন্দ করি।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 33,
+      question: {
+        en: "I like to get into discussions about issues.",
+        hi: "मुझे मुद्दों पर चर्चाओं में शामिल होना पसंद है।",
+        te: "నాకు సమస్యలపై చర్చల్లో పాల్గొనడం ఇష్టం.",
+        ta: "பிரச்சினைகள் குறித்த விவாதங்களில் ஈடுபடுவது எனக்கு பிடிக்கும்.",
+        bn: "আমি বিভিন্ন বিষয়ে আলোচনায় অংশ নিতে পছন্দ করি।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 34,
+      question: {
+        en: "I like working outdoors.",
+        hi: "मुझे बाहर काम करना पसंद है।",
+        te: "నాకు బయట పని చేయడం ఇష్టం.",
+        ta: "வெளியில் வேலை செய்வது எனக்கு பிடிக்கும்.",
+        bn: "আমি বাইরে কাজ করতে পছন্দ করি।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 35,
+      question: {
+        en: "I like to draw.",
+        hi: "मुझे चित्र बनाना पसंद है।",
+        te: "నాకు డ్రాయింగ్ చేయడం ఇష్టం.",
+        ta: "எனக்கு வரைதல் பிடிக்கும்.",
+        bn: "আমি আঁকতে পছন্দ করি।",
+      },
+      options: commonOptions,
+    },
+  ],
+  values: [
+    {
+      id: 36,
+      question: {
+        en: "I try to give time to my hobbies and family, not just studies or work.",
+        hi: "मैं सिर्फ पढ़ाई या काम ही नहीं, बल्कि अपने शौक और परिवार को भी समय देने की कोशिश करता हूँ।",
+        te: "నేను చదువు లేదా పనికే కాకుండా నా అభిరుచులు మరియు కుటుంబానికి కూడా సమయం ఇవ్వడానికి ప్రయత్నిస్తాను.",
+        ta: "நான் படிப்பு அல்லது வேலையிலேயே அல்லாமல், என் பொழுதுபோக்குகளுக்கும் குடும்பத்திற்கும் நேரம் ஒதுக்க முயற்சிக்கிறேன்.",
+        bn: "আমি শুধু পড়াশোনা বা কাজ নয়, আমার শখ এবং পরিবারকেও সময় দেওয়ার চেষ্টা করি।",
+        gu: "હું ફક્ત અભ્યાસ અથવા કામ જ નહીં, પરંતુ મારા શોખ અને પરિવારને પણ સમય આપવા પ્રયત્ન કરું છું.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 37,
+      question: {
+        en: "I don’t mind doing school or work-related tasks at home if needed.",
+        hi: "जरूरत पड़ने पर मुझे घर पर पढ़ाई या काम से जुड़ा काम करने में कोई आपत्ति नहीं है।",
+        te: "అవసరమైతే నేను ఇంట్లో పాఠశాల లేదా పనికి సంబంధించిన పనులు చేయడంలో ఇబ్బంది పడను.",
+        ta: "தேவைப்பட்டால் பள்ளி அல்லது வேலையுடன் தொடர்புடைய காரியங்களை வீட்டில் செய்வதில் எனக்கு பிரச்சினையில்லை.",
+        bn: "প্রয়োজন হলে আমি বাড়িতে পড়াশোনা বা কাজের সঙ্গে সম্পর্কিত কাজ করতে আপত্তি করি না।",
+        gu: "જરૂર પડે ત્યારે મને ઘરે શાળા અથવા કામ સંબંધિત કામ કરવાથી વાંધો નથી.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 38,
+      question: {
+        en: "Getting the first position or being known as “the best” is not very important to me.",
+        hi: "पहला स्थान पाना या 'सबसे अच्छा' कहलाना मेरे लिए बहुत ज़रूरी नहीं है।",
+        te: "మొదటి స్థానం సాధించడం లేదా 'అత్యుత్తమం' అని పిలవబడడం నాకు చాలా ముఖ్యమేమీ కాదు.",
+        ta: "முதல் இடத்தைப் பெறுவது அல்லது 'சிறந்தவர்' என்று அழைக்கப்படுவது எனக்கு மிகவும் முக்கியமல்ல.",
+        bn: "প্রথম হওয়া বা 'সেরা' হিসেবে পরিচিত হওয়া আমার কাছে খুব গুরুত্বপূর্ণ নয়।",
+        gu: "પ્રથમ સ્થાન મેળવવું અથવા 'સૌથી શ્રેષ્ઠ' કહેવાવું મારા માટે ખૂબ મહત્વનું નથી.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 39,
+      question: {
+        en: "I like to do tasks my way instead of following fixed rules.",
+        hi: "मुझे तय नियमों का पालन करने के बजाय अपने तरीके से कार्य करना पसंद है।",
+        te: "నిర్దిష్ట నియమాలను అనుసరించడం కంటే నా విధానంలో పనులు చేయడం నాకు ఇష్టం.",
+        ta: "நிரந்தர விதிகளைப் பின்பற்றுவதற்குப் பதிலாக என் முறையில் பணிகளைச் செய்வது எனக்கு பிடிக்கும்.",
+        bn: "নির্দিষ্ট নিয়ম অনুসরণ করার চেয়ে নিজের মতো কাজ করতে আমি পছন্দ করি।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 40,
+      question: {
+        en: "Being known and respected for my work is not a big goal for me.",
+        hi: "अपने काम के लिए पहचाना जाना या सम्मान पाना मेरे लिए बहुत बड़ा लक्ष्य नहीं है।",
+        te: "నా పనికి గుర్తింపు లేదా గౌరవం పొందడం నా కోసం పెద్ద లక్ష్యం కాదు.",
+        ta: "என் பணிக்காக அறியப்படுவது அல்லது மரியாதை பெறுவது எனக்கு பெரிய இலக்கல்ல.",
+        bn: "আমার কাজের জন্য পরিচিত বা সম্মানিত হওয়া আমার কাছে বড় লক্ষ্য নয়।",
+        gu: "મારા કામ માટે ઓળખ અથવા માન મેળવવું મારા માટે મોટું લક્ષ્ય નથી.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 41,
+      question: {
+        en: "I feel happy when everyone in my group works well together.",
+        hi: "जब मेरे समूह के सभी लोग मिलजुलकर अच्छा काम करते हैं तो मुझे खुशी होती है।",
+        te: "నా గుంపులో ప్రతి ఒక్కరూ కలిసి బాగా పనిచేసినప్పుడు నాకు ఆనందంగా ఉంటుంది.",
+        ta: "என் குழுவில் அனைவரும் ஒன்றாக நன்றாக வேலை செய்யும்போது எனக்கு மகிழ்ச்சி அடைகிறேன்.",
+        bn: "আমার দলের সবাই একসঙ্গে ভালোভাবে কাজ করলে আমি খুশি হই।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 42,
+      question: {
+        en: "I like being in a place where I can learn and grow.",
+        hi: "मुझे ऐसे स्थान पर रहना पसंद है जहाँ मैं सीख सकूँ और बढ़ सकूँ।",
+        te: "నేను నేర్చుకోవడం మరియు ఎదగడం సాధ్యమయ్యే చోట ఉండటం నాకు ఇష్టం.",
+        ta: "நான் கற்றுக் கொண்டு வளர முடியும் இடத்தில் இருப்பது எனக்கு பிடிக்கும்.",
+        bn: "আমি এমন জায়গায় থাকতে পছন্দ করি যেখানে আমি শিখতে এবং বেড়ে উঠতে পারি।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 43,
+      question: {
+        en: "Having a job with a high salary is very important to me.",
+        hi: "मेरे लिए उच्च वेतन वाली नौकरी बहुत महत्वपूर्ण है।",
+        te: "అధిక వేతనం ఉన్న ఉద్యోగం నాకు చాలా ముఖ్యం.",
+        ta: "அதிக சம்பளம் உள்ள வேலை எனக்கு மிகவும் முக்கியமானது.",
+        bn: "আমার জন্য উচ্চ বেতনের চাকরি খুবই গুরুত্বপূর্ণ।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 44,
+      question: {
+        en: "The main reason I would stay or leave a job is the salary.",
+        hi: "किसी नौकरी में बने रहने या छोड़ने का मेरा मुख्य कारण वेतन होगा।",
+        te: "ఒక ఉద్యోగంలో ఉండటానికి లేదా వదిలివేయటానికి ప్రధాన కారణం జీతం అవుతుంది.",
+        ta: "ஒரு வேலையில் தொடர்வதற்கும் அல்லது விட்டு செல்லுவதற்கும் முக்கிய காரணம் சம்பளமாக இருக்கும்.",
+        bn: "আমি চাকরিতে থাকব বা ছাড়ব—এর প্রধান কারণ হবে বেতন।",
+        gu: "નોકરીમાં રહેવું કે છોડવું તેનો મુખ્ય કારણ પગાર હશે.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 45,
+      question: {
+        en: "I don’t believe that only high-paying jobs mean good work.",
+        hi: "मेरा मानना है कि सिर्फ अधिक वेतन वाली नौकरियाँ ही अच्छा काम नहीं होतीं।",
+        te: "ఎక్కువ జీతం ఇచ్చే ఉద్యోగాలు మాత్రమే మంచి పనిగా నేను నమ్మను.",
+        ta: "அதிக சம்பளம் தரும் வேலைகள் மட்டுமே நல்ல வேலை என்று நான் நம்புவதில்லை.",
+        bn: "আমি মনে করি না যে শুধু বেশি বেতনের চাকরিই ভালো কাজ।",
+        gu: "હું માનતો નથી કે ફક્ત વધુ પગારવાળી નોકરીઓ જ સારો કામ દર્શાવે છે.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 46,
+      question: {
+        en: "Having a stable job is important to me.",
+        hi: "मेरे लिए स्थिर नौकरी होना महत्वपूर्ण है।",
+        te: "స్థిరమైన ఉద్యోగం నాకు ముఖ్యం.",
+        ta: "நிலையான வேலை எனக்கு முக்கியம்.",
+        bn: "আমার জন্য একটি স্থিতিশীল চাকরি থাকা গুরুত্বপূর্ণ।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 47,
+      question: {
+        en: "I’m okay with a job that pays more even if it is uncertain or changes often.",
+        hi: "अगर नौकरी ज़्यादा वेतन देती है तो उसके अस्थिर या बार-बार बदलने से मुझे परेशानी नहीं है।",
+        te: "జీతం ఎక్కువగా ఉంటే, ఆ ఉద్యోగం స్థిరంగా లేకపోయినా లేదా తరచుగా మారినా నాకు సమస్య లేదు.",
+        ta: "அது அதிக சம்பளம் தருமானால், வேலை உறுதியற்றதாகவோ அல்லது அடிக்கடி மாறினாலும் எனக்கு பிரச்சினையில்லை.",
+        bn: "চাকরিটি অনিশ্চিত বা প্রায়ই বদলালেও যদি বেশি বেতন দেয়, আমার আপত্তি নেই।",
+        gu: "જો નોકરી વધુ પગાર આપે તો તે અનિશ્ચિત હોય કે વારંવાર બદલાય, તો મને વાંધો નથી.",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 48,
+      question: {
+        en: "I want a job that has long-term benefits like a pension.",
+        hi: "मैं ऐसी नौकरी चाहता हूं जिसमें पेंशन जैसी दीर्घकालिक सुविधाएं हों।",
+        te: "పెన్షన్ వంటి దీర్ఘకాలిక ప్రయోజనాలు ఉన్న ఉద్యోగాన్ని నేను కోరుకుంటున్నాను.",
+        ta: "பணியாளர் ஓய்வூதியம் போன்ற நீண்டகால நன்மைகள் உள்ள வேலையை நான் விரும்புகிறேன்.",
+        bn: "আমি এমন একটি চাকরি চাই যেখানে পেনশনের মতো দীর্ঘমেয়াদী সুবিধা থাকবে।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 49,
+      question: {
+        en: "I wouldn't mind working 8 hours a day in an office.",
+        hi: "मुझे दिन में 8 घंटे दफ्तर में काम करने में कोई आपत्ति नहीं है।",
+        te: "రోజుకు 8 గంటలు కార్యాలయంలో పనిచేయడంలో నాకు అభ్యంతరం లేదు.",
+        ta: "ஒரு நாளில் 8 மணி நேரம் அலுவலகத்தில் வேலை செய்வதில் எனக்கு பிரச்சினை இல்லை.",
+        bn: "আমি প্রতিদিন ৮ ঘণ্টা অফিসে কাজ করতে আপত্তি করি না।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 50,
+      question: {
+        en: "I want to work in a role that is socially impactful / helps the community.",
+        hi: "मैं ऐसे काम में रहना चाहता हूं जो समाज पर प्रभाव डालता हो या समुदाय की मदद करता हो।",
+        te: "సామాజిక ప్రభావం కలిగించే లేదా సమాజానికి సహాయం చేసే పాత్రలో పని చేయాలని నేను కోరుకుంటున్నాను.",
+        ta: "சமூகத்தில் தாக்கத்தை ஏற்படுத்தும் அல்லது சமூகத்திற்கு உதவும் வேலையில் பணிபுரிய விரும்புகிறேன்.",
+        bn: "আমি এমন কাজে কাজ করতে চাই যা সমাজে প্রভাব ফেলে বা সম্প্রদায়কে সাহায্য করে।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 51,
+      question: {
+        en: "I like leading small groups and taking responsibility.",
+        hi: "मुझे छोटे समूहों का नेतृत्व करना और जिम्मेदारी लेना पसंद है।",
+        te: "చిన్న గుంపులను నడిపించడం మరియు బాధ్యత తీసుకోవడం నాకు ఇష్టం.",
+        ta: "சிறிய குழுக்களை வழிநடத்தி பொறுப்பேற்பதில் எனக்கு விருப்பம்.",
+        bn: "আমি ছোট দল পরিচালনা করতে এবং দায়িত্ব নিতে পছন্দ করি।",
+      },
+      options: commonOptions,
+    },
+    {
+      id: 52,
+      question: {
+        en: "I want to do work that also serves my country and society.",
+        hi: "मैं ऐसा काम करना चाहता/चाहती हूँ जो देश और समाज की सेवा करे।",
+        te: "నేను నా దేశం మరియు సమాజానికి ఉపయోగపడే పని చేయాలని కోరుకుంటున్నాను.",
+        ta: "நான் என் நாடும் சமூகமும் பயன்பெறும் வகையில் வேலை செய்ய விரும்புகிறேன்.",
+        bn: "আমি এমন কাজ করতে চাই যা আমার দেশ ও সমাজের উপকারে আসে।",
+        gu: "હું એવો કામ કરવું ઇચ્છું છું જે દેશ અને સમાજની સેવા કરે.",
+      },
+      options: commonOptions,
+    },
+  ],
+  personal: [
+    {
+      id: 53,
+      type: "multiple",
+      question: {
+        en: "Which subjects did you most enjoy to study?",
+        hi: "आपको कौन से विषय पढ़ना सबसे अधिक पसंद था?",
+        te: "మీకు చదవడం అత్యంత ఇష్టమైన విషయాలు ఏవి?",
+        ta: "உங்களுக்கு படிக்க மிகவும் பிடித்த பாடங்கள் எவை?",
+        bn: "আপনি ক��ন বিষয়গুলি পড়তে সবচেয়ে উপভোগ করেছেন?",
+      },
+      options: {
+        en: [
+          "Math",
+          "Science (Physics/Chemistry/Biology)",
+          "Social Studies (History/Geography/Civics)",
+          "English / Other Languages",
+          "Computer Science / Coding",
+          "Art / Design",
+          "Music",
+          "Drama",
+          "Economics",
+          "Physical Education / Sports",
+        ],
+        hi: [
+          "गणित",
+          "विज्ञान (भौतिकी / रसायन / जीवविज्ञान)",
+          "सामाजिक अध्ययन (इतिहास / भूगोल / नागरिक शास्त्र)",
+          "अंग्रेजी / अन्य भाषाएँ",
+          "कंप्यूटर विज्ञान / कोडिंग",
+          "कला / डिज़ाइन",
+          "संगीत",
+          "नाटक",
+          "अर्थशास्त्र",
+          "शारीरिक शिक्षा / खेल",
+        ],
+        te: [
+          "గణితం",
+          "సైన్స్ (భౌతిక శాస్త్రం / రసాయన శాస్త్రం / జీవశాస్త్రం)",
+          "సామాజిక అధ్యయనాలు (చరిత్ర / భూగోళ శాస్త్రం / పౌర శాస్త్రం)",
+          "ఇంగ్లీష్ / ఇతర భాషలు",
+          "కంప్యూటర్ సైన్స్ / కోడింగ్",
+          "కళ / డిజైన్",
+          "సంగీతం",
+          "నాటకం",
+          "అర్థశాస్త్రం",
+          "శారీరక విద్య / క్రీడలు",
+        ],
+        ta: [
+          "கணிதம்",
+          "அறிவியல் (இயற்பியல் / இரசாயனவியல் / உயிரியல்)",
+          "சமூக அறிவியல் (வரலாறு / புவியியல் / குடியியல்)",
+          "ஆங்கிலம் / பிற மொழிகள்",
+          "கணினி அறிவியல் / குறியீட்டல்",
+          "கலை / வடிவமைப்பு",
+          "இசை",
+          "நாடகம்",
+          "பொருளாதாரம்",
+          "உடற்கல்வி / விளையாட்டு",
+        ],
+        bn: [
+          "গণিত",
+          "বিজ্ঞান (পদার্থ / রসায়ন / জীববিজ্ঞান)",
+          "সমাজবিজ্ঞান (ইতিহাস / ভূগোল / নাগরিক)",
+          "ইংরেজি / অন্যান্য ভাষা",
+          "কম্পিউটার বিজ্ঞান / কোডিং",
+          "শিল্প / ডিজাইন",
+          "সঙ্গীত",
+          "নাটক",
+          "অর্থনীতি",
+          "শারীরিক শিক্ষা / খেলাধুলা",
+        ],
+      },
+    },
+    {
+      id: 54,
+      type: "short",
+      question: {
+        en: "Is there any field you want to make your career in? Specify.",
+        hi: "क्या कोई क्षेत्र है जिसमें आप अपना करियर बनाना चाहते हैं? कृपया बताएं।",
+        te: "మీరు మీ వృత్తిని నిర్మించాలనుకుంటున్న ఏదైనా రంగం ఉందా? దయచేసి పేర్కొనండి.",
+        ta: "நீங்கள் உங்கள் தொழிலை உருவாக்க விரும்பும் எந்த துறையாவது உள்ளதா? தயவு செய்து குறிப்பிடவும்.",
+        bn: "আপনি কি এমন কোনো ক্ষেত্রে ক্যারিয়ার গড়তে চান? অনুগ্রহ করে উল্লেখ করুন।",
+      },
+    },
+    {
+      id: 55,
+      type: "single",
+      question: {
+        en: "Do you plan to go to college for further education?",
+        hi: "क्या आप आगे की पढ़ाई के लिए कॉलेज जाने की योजना बना रहे हैं?",
+        te: "మీరు మరింత విద్య కోసం కాలేజీకి వెళ్లాలని ప్లాన్ చేస్తున్నారా?",
+        ta: "நீங்கள் மேலதிகக் கல்விக்காக கல்லூரிக்குச் செல்ல திட்டமிடுகிறீர்களா?",
+        bn: "আপনি কি উচ্চশিক্ষার জন্য কলেজে যাওয়ার পরিকল্পনা করছেন?",
+      },
+      options: {
+        en: ["Yes", "No"],
+        hi: ["हाँ", "नहीं"],
+        te: ["అవును", "కాదు"],
+        ta: ["ஆம்", "இல்லை"],
+        bn: ["হ্যাঁ", "না"],
+      },
+    },
+  ],
+};
+
+const testTitles = {
+  aptitude: {
+    en: "Aptitude Assessment",
+    hi: "योग्यता मूल्यांकन",
+    te: "ఆప్టిట్యూడ్ అసెస్‌మెంట్",
+    ta: "திறன் மதிப்பீடு",
+    bn: "যোগ্যতা মূল্যায়ন",
+    gu: "યોગ્યતા મૂલ્યાંકન",
+  },
+  values: {
+    en: "Values & Motivation",
+    hi: "मूल्य और प्रेरणा",
+    te: "విలువలు & ప్రేరణ",
+    ta: "மதிப்புகள் & ஊக்கம்",
+    bn: "মূল্যবোধ ও অনুপ্রেরণা",
+    gu: "મૂલ્યો અને પ્રેરણા",
+  },
+  personal: {
+    en: "Personal Information",
+    hi: "व्यक्तिगत जानकारी",
+    te: "వ్యక్తిగత సమాచారం",
+    ta: "தனிப்பட்ட தகவல்",
+    bn: "ব্যক্তিগত তথ্য",
+    gu: "વ્યક્તિગત માહિતી",
+  },
+};
+
+const testEmojis = {
+  aptitude: "🎯",
+  values: "💡",
+  personal: "👤",
+};
+
+export function TestFormPage({
+  userProfile,
+  setUserProfile,
+  testType,
+  navigateTo,
+  savedAssessment,
+  setSavedAssessment,
+  completeTest,
+  currentTestIndex,
+  totalTests,
+  onTestComplete,
+}: TestFormPageProps) {
+  const [showDialog, setShowDialog] = useState(true);
+  const [answers, setAnswers] = useState<{ [key: number]: string | string[] }>(
+    {}
+  );
+  const questions = testQuestions[testType] || [];
+  const lang = userProfile.language;
+
+  // Early return if no questions available
+  if (!questions || questions.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading questions...
+      </div>
+    );
+  }
+
+  const handleLanguageChange = (newLang: Language) => {
+    setUserProfile({ ...userProfile, language: newLang });
+  };
+
+  const handleAnswerChange = (questionId: number, value: string | string[]) => {
+    setAnswers({ ...answers, [questionId]: value });
+  };
+
+  const handleCheckboxChange = (
+    questionId: number,
+    option: string,
+    checked: boolean
+  ) => {
+    const currentAnswers = (answers[questionId] as string[]) || [];
+    if (checked) {
+      handleAnswerChange(questionId, [...currentAnswers, option]);
+    } else {
+      handleAnswerChange(
+        questionId,
+        currentAnswers.filter((a) => a !== option)
+      );
+    }
+  };
+
+  const calculateProgress = () => {
+    const answeredCount = questions.filter((q) => {
+      const answer = answers[q.id];
+      if (!answer) return false;
+      if (Array.isArray(answer)) return answer.length > 0;
+      if (typeof answer === "string") return answer.trim() !== "";
+      return true;
+    }).length;
+    return (answeredCount / questions.length) * 100;
+  };
+
+  const handleSave = () => {
+    const savedData: SavedAssessment = {
+      testType,
+      progress: calculateProgress(),
+      answers,
+      currentQuestionIndex: 0,
+    };
+    setSavedAssessment(savedData);
+
+    toast.success("Progress Saved!", {
+      description: "You can continue this assessment later.",
+      icon: <CheckCircle className="h-5 w-5" />,
+      duration: 2000,
+    });
+
+    setTimeout(() => {
+      navigateTo("home");
+    }, 2000);
+  };
+
+  const handleAutoFill = () => {
+    const autoFilledAnswers: { [key: number]: string | string[] } = {};
+
+    questions.forEach((q) => {
+      const questionType = (q as any).type;
+
+      if (questionType === "multiple") {
+        // For multiple choice, select first 2-3 options
+        const options = q.options?.[lang] || [];
+        autoFilledAnswers[q.id] = options.slice(0, Math.min(3, options.length));
+      } else if (questionType === "short") {
+        // For text input, fill with a test answer
+        const testAnswers: Record<Language, string> = {
+          en: "Test answer for development purposes",
+          hi: "विकास उद्देश्यों के लिए परीक्षण उत्तर",
+          te: "అభివృద్ధి ప్రయోజనాల కోసం పరీక్ష సమాధానం",
+          ta: "வளர்ச்சி நோக்கங்களுக்கான சோதனை பதில்",
+          bn: "উন্নয়নের উদ্দেশ্যে পরীক্ষার উত্তর",
+          gu: "વિકાસ હેતુઓ માટે પરીક્ષણ જવાબ",
+        };
+        autoFilledAnswers[q.id] = testAnswers[lang] || testAnswers.en;
+      } else if (questionType === "single") {
+        // For single choice, select first option
+        const options = q.options?.[lang] || [];
+        if (options.length > 0) {
+          autoFilledAnswers[q.id] = options[0];
+        }
+      } else {
+        // For default radio buttons (aptitude/values), select "Agree" (4th option, index 3)
+        const options = commonOptions[lang] || commonOptions.en;
+        // "Agree" is the 4th option (index 3) in the 5-option scale: [0:Strongly Disagree, 1:Disagree, 2:Neutral, 3:Agree, 4:Strongly Agree]
+        const agreeIndex = 3; // "Agree" option
+        autoFilledAnswers[q.id] =
+          options[agreeIndex] || options[options.length - 2] || options[2];
+      }
+    });
+
+    setAnswers(autoFilledAnswers);
+    toast.success("All questions auto-filled!", {
+      description: "All answers have been filled for testing purposes.",
+      icon: <Zap className="h-5 w-5" />,
+      duration: 2000,
+    });
+  };
+
+  const handleNext = async () => {
+    // Check if all questions are answered
+    const unanswered = questions.filter((q) => {
+      const answer = answers[q.id];
+      if (!answer) return true;
+      if (Array.isArray(answer) && answer.length === 0) return true;
+      if (typeof answer === "string" && answer.trim() === "") return true;
+      return false;
+    });
+
+    if (unanswered.length > 0) {
+      toast.error("Incomplete Section", {
+        description: "Please answer all questions before proceeding.",
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Test responses will be saved when completing the assessment
+    // No need to save here as we collect all answers in state
+
+    // Clear saved assessment and complete test
+    setSavedAssessment(null);
+
+    // Notify parent of test completion with answers
+    if (onTestComplete) {
+      onTestComplete(testType, answers);
+    }
+
+    completeTest(testType);
+  };
+
+  return (
+    <>
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-4xl mb-2">
+              {testEmojis[testType]}
+            </DialogTitle>
+            <DialogTitle className="text-center">
+              {testTitles[testType][lang]}
+            </DialogTitle>
+            <DialogDescription className="text-center pt-4">
+              {lang === "en" &&
+                `Section ${currentTestIndex + 1} of ${totalTests}`}
+              {lang === "hi" && `भाग ${currentTestIndex + 1} का ${totalTests}`}
+              {lang === "te" &&
+                `విభాగం ${currentTestIndex + 1} యొక్క ${totalTests}`}
+              {lang === "ta" &&
+                `பிரிவு ${currentTestIndex + 1} இல் ${totalTests}`}
+              {lang === "bn" &&
+                `বিভাগ ${currentTestIndex + 1} এর ${totalTests}`}
+              {lang === "gu" &&
+                `વિભાગ ${currentTestIndex + 1} નું ${totalTests}`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Instructions for Aptitude Test */}
+          {testType === "aptitude" && (
+            <div className="px-2 py-4 space-y-3 text-sm text-gray-700">
+              {lang === "en" && (
+                <>
+                  <p>
+                    You'll now answer a few short statements to help us
+                    understand what kinds of activities and subjects you enjoy.
+                  </p>
+                  <p>
+                    For each one, choose how much you agree — from Strongly
+                    Disagree to Strongly Agree.
+                  </p>
+                  <p>
+                    There are no right or wrong answers, just what feels true
+                    for you.
+                  </p>
+                  <p>
+                    Your responses will help us suggest careers that fit your
+                    strengths and interests.
+                  </p>
+                </>
+              )}
+              {lang === "hi" && (
+                <>
+                  <p>
+                    अब आप कुछ छोटे कथनों का उत्तर देंगे जो हमें यह समझने में मदद
+                    करेंगे कि आप किस प्रकार की गतिविधियों और विषयों में रुचि
+                    रखते हैं।
+                  </p>
+                  <p>
+                    प्रत्येक के लिए, चुनें कि आप कितना सहमत हैं — बिल्कुल असहमत
+                    से पूर्णतः सहमत तक।
+                  </p>
+                  <p>
+                    कोई सही या गलत उत्तर नहीं है, बस वही चुनें जो आपके लिए सच
+                    लगे।
+                  </p>
+                  <p>
+                    आपके उत्तर हमें ऐसे करियर सुझाने में मदद करेंगे जो आपकी ताकत
+                    और रुचियों के अनुकूल हों।
+                  </p>
+                </>
+              )}
+              {lang === "te" && (
+                <>
+                  <p>
+                    మీరు ఏ రకమైన కార్యకలాపాలు మరియు విషయాలను ఆనందిస్తారో మాకు
+                    అర్థం చేసుకోవడానికి ఇప్పుడు మీరు కొన్ని చిన్న ప్రకటనలకు
+                    సమాధానమిస్తారు।
+                  </p>
+                  <p>
+                    ప్రతి దానికి, మీరు ఎంతవరకు అంగీకరిస్తున్నారో ఎంచుకోండి —
+                    పూర్తిగా అంగీకరించను నుండి పూర్తిగా అంగీకరిస్తున్నాను వరకు।
+                  </p>
+                  <p>
+                    సరైన లేదా తప్పు సమాధానాలు ఏవీ లేవు, మీకు నిజమని అనిపించేది
+                    మాత్రమే.
+                  </p>
+                  <p>
+                    మీ ప్రతిస్పందనలు మీ బలాలు మరియు ఆసక్తులకు సరిపోయే కెరీర్లను
+                    సూచించడంలో మాకు సహాయం చేస్తాయి।
+                  </p>
+                </>
+              )}
+              {lang === "ta" && (
+                <>
+                  <p>
+                    நீங்கள் எந்த வகையான செயல்பாடுகள் மற்றும் பாடங்களை
+                    விரும்புகிறீர்கள் என்பதை எங்களுக்குப் புரிந்துகொள்ள இப்போது
+                    சில குறுகிய அறிக்கைகளுக்கு பதிலளிப்பீர்கள்.
+                  </p>
+                  <p>
+                    ஒவ்வொன்றிற்கும், நீங்கள் எவ்வளவு ஒப்புக்கொள்கிறீர்கள்
+                    என்பதைத் தேர்வுசெய்யவும் — முற்றிலும் மறுக்கிறேன்
+                    என்பதிலிருந்து முற்றிலும் ஒப்புக்கொள்கிறேன் வரை.
+                  </p>
+                  <p>
+                    சரியான அல்லது தவறான பதில்கள் எதுவும் இல்லை, உங்களுக்கு
+                    உண்மையாகத் தோன்றுவது மட்டுமே.
+                  </p>
+                  <p>
+                    உங்கள் பதில்கள் உங்கள் பலம் மற்றும் ஆர்வங்களுக்கு ஏற்ற
+                    தொழில்களை பரிந்துரைக்க எங்களுக்கு உதவும்.
+                  </p>
+                </>
+              )}
+              {lang === "bn" && (
+                <>
+                  <p>
+                    এখন আপনি কিছু সংক্ষিপ্ত বিবৃতির উত্তর দেবেন যা আমাদের বুঝতে
+                    সাহায্য করবে আপনি কোন ধরনের কার্যকলাপ এবং বিষয় উপভোগ করেন।
+                  </p>
+                  <p>
+                    প্রতিটির জন্য, আপনি কতটা সম্মত তা চয়ন করুন — সম্পূর্ণ
+                    অসম্মত থেকে সম্পূর্ণ সম্মত পর্যন্ত।
+                  </p>
+                  <p>
+                    কোনও সঠিক বা ভুল উত্তর নেই, শুধুমাত্র যা আপনার জন্য সত্য মনে
+                    হয়।
+                  </p>
+                  <p>
+                    আপনার প্রতিক্রিয়াগুলি আমাদের আপনার শক্তি এবং আগ্রহের সাথে
+                    খাপ খায় এমন ক্যারিয়ার সুপারিশ করতে সাহায্য করবে।
+                  </p>
+                </>
+              )}
+              {lang === "gu" && (
+                <>
+                  <p>
+                    હવે તમે કેટલાક ટૂંકા નિવેદનોના જવાબ આપશો જે અમને સમજવામાં
+                    મદદ કરશે કે તમને કયા પ્રકારની પ્રવૃત્તિઓ અને વિષયો ગમે છે।
+                  </p>
+                  <p>
+                    દરેક માટે, તમે કેટલા સહમત છો તે પસંદ કરો — સંપૂર્ણ અસહમતથી
+                    સંપૂર્ણ સહમત સુધી।
+                  </p>
+                  <p>
+                    કોઈ સાચા અથવા ખોટા જવાબો નથી, ફક્ત જે તમને સાચું લાગે છે તે.
+                  </p>
+                  <p>
+                    તમારા પ્રતિભાવો અમને તમારી શક્તિઓ અને રુચિઓને અનુરૂપ
+                    કારકિર્દી સૂચવવામાં મદદ કરશે.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Instructions for Values Test */}
+          {testType === "values" && (
+            <div className="px-2 py-4 space-y-3 text-sm text-gray-700">
+              {lang === "en" && (
+                <>
+                  <p>
+                    This part explores what motivates you and what you value in
+                    a career — things like teamwork, creativity, stability, or
+                    social impact.
+                  </p>
+                  <p>
+                    Again, select how much you agree with each statement on the
+                    scale from Strongly Disagree to Strongly Agree.
+                  </p>
+                  <p>
+                    Be honest — your answers help us find careers that match not
+                    just your skills, but also your values and goals.
+                  </p>
+                </>
+              )}
+              {lang === "hi" && (
+                <>
+                  <p>
+                    यह भाग यह पता लगाता है कि आपको क्या प्रेरित करता है और करियर
+                    में आप क्या महत्व देते हैं — जैसे टीम वर्क, रचनात्मकता,
+                    स्थिरता या सामाजिक प्रभाव।
+                  </p>
+                  <p>
+                    फिर से, प्रत्येक कथन से आप कितना सहमत हैं यह चुनें — बिल्कुल
+                    असहमत से पूर्णतः सहमत तक।
+                  </p>
+                  <p>
+                    ईमानदार रहें — आपके उत्तर हमें ऐसे करियर खोजने में मदद करते
+                    हैं जो न केवल आपके कौशल बल्कि आपके मूल्यों और लक्ष्यों से भी
+                    मेल खाते हैं।
+                  </p>
+                </>
+              )}
+              {lang === "te" && (
+                <>
+                  <p>
+                    ఈ భాగం మిమ్మల్ని ఏమి ప్రేరేపిస్తుందో మరియు కెరీర్‌లో మీరు
+                    దేనికి విలువ ఇస్తారో అన్వేషిస్తుంది — టీమ్ వర్క్,
+                    సృజనాత్మకత, స్థిరత్వం లేదా సామాజిక ప్రభావం వంటివి.
+                  </p>
+                  <p>
+                    మళ్లీ, ప్రతి ప్రకటనతో మీరు ఎంతవరకు అంగీకరిస్తున్నారో
+                    స్కేల్‌పై ఎంచుకోండి — పూర్తిగా అంగీకరించను నుండి పూర్తిగా
+                    అంగీకరిస్తున్నాను వరకు।
+                  </p>
+                  <p>
+                    నిజాయితీగా ఉండండి — మీ సమాధానాలు మీ నైపుణ్యాలకు మాత్రమే
+                    కాకుండా మీ విలువలు మరియు లక్ష్యాలకు సరిపోయే కెరీర్లను
+                    కనుగొనడంలో మాకు సహాయపడతాయి।
+                  </p>
+                </>
+              )}
+              {lang === "ta" && (
+                <>
+                  <p>
+                    இந்தப் பகுதி உங்களை என்ன ஊக்குவிக்கிறது மற்றும் ஒரு தொழிலில்
+                    நீங்கள் எதை மதிக்கிறீர்கள் என்பதை ஆராய்கிறது — குழுப்பணி,
+                    படைப்பாற்றல், நிலைத்தன்மை அல்லது சமூக தாக்கம் போன்றவை.
+                  </p>
+                  <p>
+                    மீண்டும், முற்றிலும் மறுக்கிறேன் முதல் முற்றிலும்
+                    ஒப்புக்கொள்கிறேன் வரையிலான அளவில் ஒவ்வொரு அறிக்கையுடன்
+                    நீங்கள் எவ்வளவு ஒப்புக்கொள்கிறீர்கள் என்பதைத்
+                    தேர்ந்தெடுக்கவும்.
+                  </p>
+                  <p>
+                    நேர்மையாக இருங்கள் — உங்கள் பதில்கள் உங்கள் திறன்களுக்கு
+                    மட்டுமல்ல, உங்கள் மதிப்புகள் மற்றும் இலக்குகளுக்கும்
+                    பொருந்தும் தொழில்களைக் கண்டறிய எங்களுக்கு உதவுகின்றன.
+                  </p>
+                </>
+              )}
+              {lang === "bn" && (
+                <>
+                  <p>
+                    এই অংশটি অন্বেষণ করে আপনাকে কী অনুপ্রাণিত করে এবং একটি
+                    ক্যারিয়ারে আপনি কী মূল্য দেন — যেমন দলবদ্ধ কাজ, সৃজনশীলতা,
+                    স্থিতিশীলতা, বা সামাজিক প্রভাব।
+                  </p>
+                  <p>
+                    আবার, সম্পূর্ণ অসম্মত থেকে সম্পূর্ণ সম্মত স্কেলে প্রতিটি
+                    বিবৃতির সাথে আপনি কতটা সম্মত তা নির্বাচন করুন।
+                  </p>
+                  <p>
+                    সৎ থাকুন — আপনার উত্তরগুলি আমাদের এমন ক্যারিয়ার খুঁজে পেতে
+                    সাহায্য করে যা শুধু আপনার দক্ষতা নয়, বরং আপনার মূল্যবোধ এবং
+                    লক্ষ্যগুলির সাথেও মিলে যায়।
+                  </p>
+                </>
+              )}
+              {lang === "gu" && (
+                <>
+                  <p>
+                    આ ભાગ શોધે છે કે તમને શું પ્રેરિત કરે છે અને કારકિર્દીમાં
+                    તમે શું મહત્વ આપો છો — જેમ કે ટીમવર્ક, સર્જનાત્મકતા, સ્થિરતા
+                    અથવા સામાજિક અસર.
+                  </p>
+                  <p>
+                    ફરીથી, સંપૂર્ણ અસહમતથી સંપૂર્ણ સહમત સુધીના સ્કેલ પર દરેક
+                    નિવેદન સાથે તમે કેટલા સહમત છો તે પસંદ કરો.
+                  </p>
+                  <p>
+                    પ્રામાણિક રહો — તમારા જવાબો અમને એવી કારકિર્દી શોધવામાં મદદ
+                    કરે છે જે ફક્ત તમારી કુશળતા જ નહીં, પરંતુ તમારા મૂલ્યો અને
+                    લક્ષ્યો સાથે પણ મેળ ખાય છે.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Instructions for Personal Information Test */}
+          {testType === "personal" && (
+            <div className="px-2 py-4 space-y-3 text-sm text-gray-700">
+              {lang === "en" && (
+                <>
+                  <p>
+                    Finally, we'd love to know a few quick details to
+                    personalize your guidance.
+                  </p>
+                  <p>
+                    Choose the subjects you most enjoy, share any career
+                    interests or goals you have, and tell us your plans after
+                    10th grade.
+                  </p>
+                  <p>
+                    This information stays private and is only used to make your
+                    results more accurate and useful.
+                  </p>
+                </>
+              )}
+              {lang === "hi" && (
+                <>
+                  <p>
+                    अंत में, हम आपके मार्गदर्शन को व्यक्तिगत बनाने के लिए कुछ
+                    त्वरित विवरण जानना चाहेंगे।
+                  </p>
+                  <p>
+                    वे विषय चुनें जिन्हें आप सबसे अधिक पसंद करते हैं, अपने करियर
+                    की रुचियां या लक्ष्य साझा करें, और 10वीं के बाद आपकी क्या
+                    योजनाएँ हैं बताएं।
+                  </p>
+                  <p>
+                    यह जानकारी निजी रहती है और केवल आपके परिणामों को अधिक सटीक
+                    और उपयोगी बनाने के लिए उपयोग की जाती है।
+                  </p>
+                </>
+              )}
+              {lang === "te" && (
+                <>
+                  <p>
+                    చివరగా, మీ మార్గదర్శకత్వాన్ని వ్యక్తిగతీకరించడానికి కొన్ని
+                    త్వరిత వివరాలను తెలుసుకోవాలనుకుంటున్నాము.
+                  </p>
+                  <p>
+                    మీరు అత్యంత ఆనందించే విషయాలను ఎంచుకోండి, మీకు ఉన్న కెరీర్
+                    ఆసక్తులు లేదా లక్ష్యాలను పంచుకోండి మరియు 10వ తరగతి తర్వాత మీ
+                    ప్రణాళికలను మాకు చెప్పండి.
+                  </p>
+                  <p>
+                    ఈ సమాచారం ప్రైవేట్‌గా ఉంటుంది మరియు మీ ఫలితాలను మరింత
+                    ఖచ్చితమైనవి మరియు ఉపయోగకరమైనవిగా చేయడానికి మాత్రమే
+                    ఉపయోగించబడుతుంది.
+                  </p>
+                </>
+              )}
+              {lang === "ta" && (
+                <>
+                  <p>
+                    இறுதியாக, உங்கள் வழிகாட்டுதலை தனிப்பயனாக்க சில விரைவான
+                    விவரங்களை அறிய விரும்புகிறோம்.
+                  </p>
+                  <p>
+                    நீங்கள் மிகவும் விரும்பும் பாடங்களைத் தேர்வுசெய்யவும்,
+                    உங்களிடம் உள்ள தொழில் ஆர்வங்கள் அல்லது இலக்குகளைப் பகிரவும்,
+                    மற்றும் 10-ஆம் வகுப்பிற்குப் பிறகு உங்கள் திட்டங்கள்
+                    என்னவென்று எங்களிடம் கூறவும்.
+                  </p>
+                  <p>
+                    இந்தத் தகவல் தனிப்பட்டதாக இருக்கும் மற்றும் உங்கள் முடிவுகளை
+                    மிகவும் துல்லியமானதாகவும் பயனுள்ளதாகவும் செய்ய மட்டுமே
+                    பயன்படுத்தப்படும்.
+                  </p>
+                </>
+              )}
+              {lang === "bn" && (
+                <>
+                  <p>
+                    অবশেষে, আমরা আপনার নির্দেশিকাকে ব্যক্তিগতকৃত করতে কিছু দ্রুত
+                    বিবরণ জানতে চাই।
+                  </p>
+                  <p>
+                    আপনি যে বিষয়গুলি সবচেয়ে বেশি উপভোগ করেন সেগুলি চয়ন করুন,
+                    আপনার যে কোনও ক্যারিয়ার আগ্রহ বা লক্ষ্য রয়েছে তা শেয়ার
+                    করুন এবং 10ম শ্রেণীর পরে আপনার পরিকল্পনা কী তা আমাদের জানান।
+                  </p>
+                  <p>
+                    এই তথ্য ব্যক্তিগত থাকে এবং শুধুমাত্র আপনার ফলাফলগুলিকে আরও
+                    সঠিক এবং উপযোগী করতে ব্যবহৃত হয়।
+                  </p>
+                </>
+              )}
+              {lang === "gu" && (
+                <>
+                  <p>
+                    છેલ્લે, તમારા માર્ગદર્શનને વ્યક્તિગત બનાવવા માટે અમે કેટલીક
+                    ઝડપી વિગતો જાણવા માંગીએ છીએ.
+                  </p>
+                  <p>
+                    તમને સૌથી વધુ ગમતા વિષયો પસંદ કરો, તમારી કોઈ કારકિર્દી રુચિઓ
+                    અથવા લક્ષ્યો શેર કરો, અને 10મા ધોરણ પછી તમારી યોજનાઓ શું છે
+                    તે અમને જણાવો.
+                  </p>
+                  <p>
+                    આ માહિતી ખાનગી રહે છે અને ફક્ત તમારા પરિણામોને વધુ સચોટ અને
+                    ઉપયોગી બનાવવા માટે જ ઉપયોગમાં લેવાય છે.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-center pt-4">
+            <Button
+              onClick={() => setShowDialog(false)}
+              className="bg-gradient-to-r from-blue-600 to-purple-600"
+            >
+              {lang === "en" && "Start"}
+              {lang === "hi" && "शुरू करें"}
+              {lang === "te" && "ప్రారంభించు"}
+              {lang === "ta" && "தொடங்கு"}
+              {lang === "bn" && "শুরু করুন"}
+              {lang === "gu" && "શરૂ કરો"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <div className="min-h-screen flex flex-col">
+        {/* Header */}
+        <header className="bg-white shadow-sm border-b sticky top-0 z-50">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigateTo("home")}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div className="flex-1">
+                <h2 className="text-gray-900">{testTitles[testType][lang]}</h2>
+                <p className="text-gray-600 text-sm">
+                  {lang === "en" &&
+                    `Test ${currentTestIndex + 1} of ${totalTests}`}
+                  {lang === "hi" &&
+                    `परीक्षा ${currentTestIndex + 1} का ${totalTests}`}
+                  {lang === "te" &&
+                    `పరీక్ష ${currentTestIndex + 1} యొక్క ${totalTests}`}
+                  {lang === "ta" &&
+                    `சோதனை ${currentTestIndex + 1} இல் ${totalTests}`}
+                  {lang === "bn" &&
+                    `পরীক্ষা ${currentTestIndex + 1} এর ${totalTests}`}
+                  {lang === "gu" &&
+                    `પરીક્ષા ${currentTestIndex + 1} નું ${totalTests}`}
+                </p>
+              </div>
+              <LanguageSelector
+                language={userProfile.language}
+                onLanguageChange={handleLanguageChange}
+              />
+              <Button
+                variant="outline"
+                onClick={handleAutoFill}
+                className="gap-2 bg-yellow-50 hover:bg-yellow-100 border-yellow-300 text-yellow-700"
+                title="Auto-fill all questions for testing"
+              >
+                <Zap className="h-4 w-4" />
+                {lang === "en" && "Auto-fill"}
+                {lang === "hi" && "स्वतः भरें"}
+                {lang === "te" && "స్వయంచాలకంగా పూరించు"}
+                {lang === "ta" && "தானாக நிரப்பு"}
+                {lang === "bn" && "স্বয়ংক্রিয়ভাবে পূরণ করুন"}
+                {lang === "gu" && "સ્વતઃ ભરો"}
+              </Button>
+              <Button variant="outline" onClick={handleSave} className="gap-2">
+                <Save className="h-4 w-4" />
+                {lang === "en" && "Save"}
+                {lang === "hi" && "सहेजें"}
+                {lang === "te" && "సేవ్"}
+                {lang === "ta" && "சேமி"}
+                {lang === "bn" && "সংরক্ষণ"}
+                {lang === "gu" && "સાચવો"}
+              </Button>
+            </div>
+            <div className="mt-4">
+              <Progress value={calculateProgress()} className="h-2" />
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <Card className="border-2 shadow-lg">
+              <CardContent className="p-8">
+                <div className="space-y-8">
+                  {questions.map((q, index) => (
+                    <div key={q.id} className="pb-6 border-b last:border-b-0">
+                      <div className="mb-4">
+                        <div className="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm mb-3">
+                          {lang === "en" && `Question ${index + 1}`}
+                          {lang === "hi" && `प्रश्न ${index + 1}`}
+                          {lang === "te" && `ప్రశ్న ${index + 1}`}
+                          {lang === "ta" && `கேள்வி ${index + 1}`}
+                          {lang === "bn" && `প্রশ্ন ${index + 1}`}
+                          {lang === "gu" && `પ્રશ્ન ${index + 1}`}
+                        </div>
+                        <h3 className="text-gray-900">{q.question[lang]}</h3>
+                        {(q as any).type === "multiple" && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            {lang === "en" && "(Select all that apply)"}
+                            {lang === "hi" && "(सभी लागू का चयन करें)"}
+                            {lang === "te" && "(వర్తించే అన్నింటినీ ఎంచుకోండి)"}
+                            {lang === "ta" &&
+                              "(பொருந்தும் அனைத்தையும் தேர்ந்தெடுக்கவும்)"}
+                            {lang === "bn" && "(প্রযোজ্য সব ন���র্বাচন করুন)"}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Multiple choice with checkboxes */}
+                      {(q as any).type === "multiple" && (
+                        <div className="flex flex-col gap-3">
+                          {(q.options?.[lang] || []).map((option, optIndex) => {
+                            const isChecked =
+                              Array.isArray(answers[q.id]) &&
+                              (answers[q.id] as string[]).includes(option);
+                            return (
+                              <div
+                                key={optIndex}
+                                className={`flex items-center space-x-3 rounded-lg border-2 hover:bg-blue-50 transition-colors cursor-pointer px-4 py-3 w-full ${
+                                  isChecked ? "bg-blue-100 border-blue-500" : ""
+                                }`}
+                                onClick={() =>
+                                  handleCheckboxChange(q.id, option, !isChecked)
+                                }
+                              >
+                                <Checkbox
+                                  checked={isChecked}
+                                  onCheckedChange={(checked) =>
+                                    handleCheckboxChange(
+                                      q.id,
+                                      option,
+                                      checked as boolean
+                                    )
+                                  }
+                                  id={`q${q.id}-opt${optIndex}`}
+                                  className="pointer-events-none"
+                                />
+                                <Label
+                                  htmlFor={`q${q.id}-opt${optIndex}`}
+                                  className="cursor-pointer flex-1 pointer-events-none"
+                                >
+                                  {option}
+                                </Label>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Text input for short answer */}
+                      {(q as any).type === "short" && (
+                        <Textarea
+                          value={(answers[q.id] as string) || ""}
+                          onChange={(e) =>
+                            handleAnswerChange(q.id, e.target.value)
+                          }
+                          placeholder={
+                            lang === "en"
+                              ? "Type your answer here..."
+                              : lang === "hi"
+                              ? "अपना उत्तर यहाँ टाइप करें..."
+                              : lang === "te"
+                              ? "మీ సమాధానాన్ని ఇక్కడ టైప్ చేయండి..."
+                              : lang === "ta"
+                              ? "உங்கள் பதிலை இங்கே தட்டச்சு செய்யவும்..."
+                              : lang === "bn"
+                              ? "এখানে আপনার উত্তর টাইপ করুন..."
+                              : "અહીં તમારો જવાબ ટાઇપ કરો..."
+                          }
+                          className="min-h-[100px] border-2 focus:border-blue-500"
+                        />
+                      )}
+
+                      {/* Radio buttons for single choice */}
+                      {(q as any).type === "single" && (
+                        <RadioGroup
+                          value={(answers[q.id] as string) || ""}
+                          onValueChange={(value) =>
+                            handleAnswerChange(q.id, value)
+                          }
+                          className="flex flex-col gap-3"
+                        >
+                          {(q.options?.[lang] || []).map((option, optIndex) => (
+                            <div
+                              key={optIndex}
+                              className={`flex items-center space-x-2 rounded-lg border-2 hover:bg-blue-50 transition-colors cursor-pointer px-4 py-3 w-full ${
+                                answers[q.id] === option
+                                  ? "bg-blue-100 border-blue-500"
+                                  : ""
+                              }`}
+                              onClick={() => handleAnswerChange(q.id, option)}
+                            >
+                              <RadioGroupItem
+                                value={option}
+                                id={`q${q.id}-opt${optIndex}`}
+                              />
+                              <Label
+                                htmlFor={`q${q.id}-opt${optIndex}`}
+                                className="cursor-pointer flex-1"
+                              >
+                                {option}
+                              </Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      )}
+
+                      {/* Default radio group for non-personal tests */}
+                      {!(q as any).type && (
+                        <RadioGroup
+                          value={(answers[q.id] as string) || ""}
+                          onValueChange={(value) =>
+                            handleAnswerChange(q.id, value)
+                          }
+                          className="flex flex-wrap gap-2"
+                        >
+                          {(q.options?.[lang] || []).map((option, optIndex) => (
+                            <div
+                              key={optIndex}
+                              className={`flex items-center space-x-2 rounded-lg border-2 hover:bg-blue-50 transition-colors cursor-pointer px-3 py-2 flex-1 min-w-[100px] ${
+                                answers[q.id] === option
+                                  ? "bg-blue-100 border-blue-500"
+                                  : ""
+                              }`}
+                              onClick={() => handleAnswerChange(q.id, option)}
+                            >
+                              <RadioGroupItem
+                                value={option}
+                                id={`q${q.id}-opt${optIndex}`}
+                              />
+                              <Label
+                                htmlFor={`q${q.id}-opt${optIndex}`}
+                                className="cursor-pointer flex-1 text-center text-xs"
+                              >
+                                {option}
+                              </Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Navigation */}
+                <div className="flex items-center justify-between mt-8 pt-6 border-t">
+                  <div className="text-sm text-gray-500">
+                    {
+                      questions.filter((q) => {
+                        const answer = answers[q.id];
+                        if (!answer) return false;
+                        if (Array.isArray(answer)) return answer.length > 0;
+                        if (typeof answer === "string")
+                          return answer.trim() !== "";
+                        return true;
+                      }).length
+                    }{" "}
+                    / {questions.length}
+                    {lang === "en" && " answered"}
+                    {lang === "hi" && " उत्तर दिए"}
+                    {lang === "te" && " సమాధానం"}
+                    {lang === "ta" && " பதிலளித்தது"}
+                    {lang === "bn" && " উত্তর দেওয়া"}
+                    {lang === "gu" && " જવાબ આપ્યા"}
+                  </div>
+
+                  <Button
+                    onClick={handleNext}
+                    className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                  >
+                    {currentTestIndex < totalTests - 1
+                      ? lang === "en"
+                        ? "Next Section"
+                        : lang === "hi"
+                        ? "अगला भाग"
+                        : lang === "te"
+                        ? "తదుపరి విభాగం"
+                        : lang === "ta"
+                        ? "அடுத்த பகுதி"
+                        : lang === "bn"
+                        ? "পরবর্তী বিভাগ"
+                        : "આગળનો વિભાગ"
+                      : lang === "en"
+                      ? "Submit"
+                      : lang === "hi"
+                      ? "जमा करें"
+                      : lang === "te"
+                      ? "సమర్పించు"
+                      : lang === "ta"
+                      ? "சமர்ப்பி"
+                      : lang === "bn"
+                      ? "জমা দিন"
+                      : "સબમિટ કરો"}
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      </div>
+    </>
+  );
+}

@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./db.sqlite3"
+}
+
+model CustomUser {
+  id              Int       @id @default(autoincrement())
+  username        String    @unique
+  email           String?
+  password        String
+  phone           String?
+  name            String
+  grade           String
+  age             Int?
+  is_setup_complete Boolean @default(false)
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+  last_login      DateTime?
+  assessments     Assessment[]
+  chat_messages   ChatMessage[]
+  
+  @@index([username])
+  @@index([email])
+  @@map("pathfinder_customuser")
+}
+
+model Assessment {
+  id               Int          @id @default(autoincrement())
+  user_id          Int
+  user             CustomUser   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  assessment_number Int
+  status           String       @default("in_progress")
+  started_at       DateTime     @default(now())
+  completed_at     DateTime?
+  test_responses   TestResponse[]
+  chat_messages    ChatMessage[]
+  
+  @@unique([user_id, assessment_number])
+  @@index([user_id])
+  @@index([status])
+  @@index([completed_at])
+  @@map("pathfinder_assessment")
+}
+
+model TestResponse {
+  id                  Int        @id @default(autoincrement())
+  assessment_id       Int
+  assessment          Assessment  @relation(fields: [assessment_id], references: [id], onDelete: Cascade)
+  test_type           String
+  responses           String      @default("{}")
+  started_at          DateTime    @default(now())
+  submitted_at        DateTime?
+  is_completed        Boolean     @default(false)
+  current_question_index Int      @default(0)
+  total_questions     Int         @default(0)
+  last_saved_at       DateTime    @updatedAt
+  
+  @@unique([assessment_id, test_type])
+  @@index([assessment_id])
+  @@index([test_type])
+  @@map("pathfinder_testresponse")
+}
+
+model ChatMessage {
+  id            Int        @id @default(autoincrement())
+  user_id       Int
+  user          CustomUser @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  assessment_id Int?
+  assessment    Assessment? @relation(fields: [assessment_id], references: [id], onDelete: SetNull)
+  message_text  String
+  sender        String
+  created_at    DateTime   @default(now())
+  is_results_chat Boolean  @default(false)
+  
+  @@index([user_id, created_at])
+  @@index([assessment_id])
+  @@index([sender])
+  @@map("pathfinder_chatmessage")
+}
+
