@@ -1,0 +1,349 @@
+"""
+RAG Service for Career Guidance Chatbot
+This service wraps the RAG chatbot functionality for integration with the Node.js backend.
+"""
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.documents import Document
+from langchain_chroma import Chroma
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from dotenv import load_dotenv
+import json
+import os
+import sys
+from typing import List, Dict, Optional
+from pathlib import Path
+
+# Load environment variables from .env file
+# Look for .env in backend directory (parent of src)
+backend_dir = Path(__file__).parent.parent.parent
+env_path = backend_dir / '.env'
+if env_path.exists():
+    load_dotenv(env_path)
+    print(f"Loaded .env from {env_path}", file=sys.stderr)
+else:
+    print(f"Warning: .env not found at {env_path}", file=sys.stderr)
+    load_dotenv()  # Try to load from current directory
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(backend_dir))
+
+
+# Configuration
+CHUNK_SIZE = 900
+CHUNK_OVERLAP = 150
+
+
+class RAGChatService:
+    def __init__(self, careers_json_path: str, chroma_persist_dir: str, provider: str = "google"):
+        """
+        Initialize the RAG Chat Service
+
+        Args:
+            careers_json_path: Path to careers_cleaned.json
+            chroma_persist_dir: Path to chroma_data_full directory
+            provider: LLM provider to use ("google" or "groq")
+        """
+        self.provider = provider
+        self.careers_json_path = careers_json_path
+        self.chroma_persist_dir = chroma_persist_dir
+
+        # Initialize embeddings
+        self.embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-mpnet-base-v2"
+        )
+
+        # Initialize or load vector database
+        self.vectordb = self._init_vectordb()
+
+        # Initialize LLM
+        self.llm = self._init_llm()
+
+        # Initialize retriever
+        self.retriever = self.vectordb.as_retriever(search_kwargs={"k": 6})
+
+        # Build the chain
+        self.chain = self._build_chain()
+
+    def _init_vectordb(self) -> Chroma:
+        """Initialize or load Chroma vector database"""
+        if os.path.exists(self.chroma_persist_dir) and os.listdir(self.chroma_persist_dir):
+            print(
+                f"Loading existing Chroma DB from {self.chroma_persist_dir}", file=sys.stderr)
+            return Chroma(
+                persist_directory=self.chroma_persist_dir,
+                embedding_function=self.embeddings
+            )
+        else:
+            print(
+                f"Creating new Chroma DB at {self.chroma_persist_dir}", file=sys.stderr)
+            items = self._load_json(self.careers_json_path)
+            docs = self._json_to_docs(items)
+            return Chroma.from_documents(
+                documents=docs,
+                embedding=self.embeddings,
+                persist_directory=self.chroma_persist_dir
+            )
+
+    def _load_json(self, path: str) -> List[Dict]:
+        """Load careers JSON file"""
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    def _json_to_docs(self, items: List[Dict]) -> List[Document]:
+        """Convert JSON items to Document chunks"""
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=CHUNK_SIZE,
+            chunk_overlap=CHUNK_OVERLAP,
+            separators=["\n\n", "\n", " ", ""],
+        )
+
+        docs = []
+        for item in items:
+            combined = f"{item['title']}\n\n{item['content']}"
+            chunks = splitter.split_text(combined)
+
+            for i, ch in enumerate(chunks):
+                docs.append(Document(
+                    page_content=ch,
+                    metadata={
+                        "source_id": item["id"],
+                        "title": item["title"],
+                        "chunk_index": i
+                    }
+                ))
+        return docs
+
+    def _init_llm(self):
+        """Initialize the LLM based on provider"""
+        if self.provider == "groq":
+            from langchain_groq import ChatGroq
+            return ChatGroq(
+                model="llama-3.3-70b-versatile",
+                temperature=0.1,
+                max_tokens=1500
+            )
+        elif self.provider == "google":
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            return ChatGoogleGenerativeAI(
+                model="gemini-2.5-pro",
+                temperature=0.1,
+                max_output_tokens=1500
+            )
+        else:
+            raise ValueError(f"Unknown provider: {self.provider}")
+
+    def _build_chain(self):
+        """Build the conversational RAG chain"""
+        prompt = ChatPromptTemplate.from_messages([
+            ("system",
+             """You are a helpful and friendly career guidance assistant for students aged 13-15.
+
+When answering questions about careers, education paths, or professional guidance:
+- Prioritize information from the Context provided below
+- Use the context to give detailed, specific answers
+- If the context has relevant information, base your answer primarily on it
+- If the context doesn't have the information, you can provide general career guidance
+- If the question is unrelated to career guidance/education/careers, politely inform the user that you can only assist with career-related queries
+- Keep responses age-appropriate and encouraging
+
+Context:
+{context}"""),
+            MessagesPlaceholder("chat_history"),
+            ("human", "{question}")
+        ])
+
+        def format_docs(docs):
+            if not docs:
+                return "No relevant information found."
+            formatted = []
+            for i, doc in enumerate(docs, 1):
+                formatted.append(
+                    f"[Source {i}: {doc.metadata.get('title', 'Unknown')}]\n{doc.page_content}")
+            return "\n\n---\n\n".join(formatted)
+
+        def get_context(inputs):
+            question = inputs["question"]
+            docs = self.retriever.invoke(question)
+            return format_docs(docs)
+
+        chain = (
+            {
+                "context": get_context,
+                "question": lambda x: x["question"],
+                "chat_history": lambda x: x.get("chat_history", [])
+            }
+            | prompt
+            | self.llm
+            | StrOutputParser()
+        )
+
+        return chain
+
+    def chat(self, message: str, chat_history: List[Dict]) -> Dict:
+        """
+        Process a chat message and return a response
+
+        Args:
+            message: User's message
+            chat_history: List of previous messages in format [{"role": "user"|"assistant", "content": "..."}]
+
+        Returns:
+            Dict with 'response' and 'sources'
+        """
+        try:
+            # Convert chat history to LangChain format
+            lc_history = []
+            for msg in chat_history[-10:]:  # Keep last 10 messages for context
+                if msg["role"] == "user":
+                    lc_history.append(HumanMessage(content=msg["content"]))
+                elif msg["role"] == "assistant":
+                    lc_history.append(AIMessage(content=msg["content"]))
+
+            # Get relevant documents
+            docs = self.retriever.invoke(message)
+
+            # Generate response
+            response = self.chain.invoke({
+                "question": message,
+                "chat_history": lc_history
+            })
+
+            # Format sources
+            sources = []
+            for doc in docs[:4]:  # Top 4 sources
+                sources.append({
+                    "title": doc.metadata.get("title", "Unknown"),
+                    "chunk_index": doc.metadata.get("chunk_index", 0),
+                    "snippet": doc.page_content[:250]
+                })
+
+            return {
+                "response": response,
+                "sources": sources,
+                "error": None
+            }
+
+        except Exception as e:
+            print(f"Error in chat: {str(e)}", file=sys.stderr)
+            return {
+                "response": None,
+                "sources": [],
+                "error": str(e)
+            }
+
+    def generate_initial_greeting(self, assessment_summary: str, language: str = "en") -> Dict:
+        """
+        Generate an initial greeting based on assessment results
+
+        Args:
+            assessment_summary: Summary of the assessment results
+            language: Language code (currently only 'en' is fully supported)
+
+        Returns:
+            Dict with 'response' and 'sources'
+        """
+        try:
+            greeting_prompt = f"""Based on this student's assessment results, generate a warm, encouraging greeting that:
+1. Welcomes them to the career guidance chat
+2. Briefly acknowledges their assessment results
+3. Invites them to ask questions about their career recommendations
+4. Is age-appropriate for students aged 13-15
+
+Assessment Summary:
+{assessment_summary}
+
+Keep the greeting concise (2-3 sentences) and friendly."""
+
+            result = self.chat(greeting_prompt, [])
+            return result
+
+        except Exception as e:
+            print(
+                f"Error generating initial greeting: {str(e)}", file=sys.stderr)
+            return {
+                "response": f"Hello! I'm your career guidance assistant. I'm here to help you explore your career options based on your assessment results. What would you like to know?",
+                "sources": [],
+                "error": str(e)
+            }
+
+
+def main():
+    """
+    Main function to handle JSON-based API requests from Node.js
+    Reads JSON from stdin (one command per line) and writes JSON to stdout
+    """
+    # Global service instance
+    rag_service = None
+
+    # Read all input lines
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+
+        try:
+            input_data = json.loads(line)
+            command = input_data.get("command")
+
+            if command == "initialize":
+                # Initialize the service
+                careers_json = input_data.get("careers_json_path")
+                chroma_dir = input_data.get("chroma_persist_dir")
+                provider = input_data.get("provider", "google")
+
+                # Create service instance
+                rag_service = RAGChatService(
+                    careers_json, chroma_dir, provider)
+
+                print(json.dumps({
+                    "status": "success",
+                    "message": "RAG service initialized"
+                }), flush=True)
+
+            elif command == "chat":
+                message = input_data.get("message")
+                chat_history = input_data.get("chat_history", [])
+
+                if rag_service is None:
+                    raise Exception(
+                        "Service not initialized. Call 'initialize' first.")
+
+                result = rag_service.chat(message, chat_history)
+                print(json.dumps({
+                    "status": "success",
+                    "data": result
+                }), flush=True)
+
+            elif command == "greeting":
+                assessment_summary = input_data.get("assessment_summary")
+                language = input_data.get("language", "en")
+
+                if rag_service is None:
+                    raise Exception(
+                        "Service not initialized. Call 'initialize' first.")
+
+                result = rag_service.generate_initial_greeting(
+                    assessment_summary, language)
+                print(json.dumps({
+                    "status": "success",
+                    "data": result
+                }), flush=True)
+
+            else:
+                print(json.dumps({
+                    "status": "error",
+                    "message": f"Unknown command: {command}"
+                }), flush=True)
+
+        except Exception as e:
+            print(json.dumps({
+                "status": "error",
+                "message": str(e)
+            }), flush=True)
+
+
+if __name__ == "__main__":
+    main()

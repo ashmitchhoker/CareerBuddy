@@ -10,7 +10,9 @@
     "type-check": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "setup:rag": "setup_rag.bat",
+    "test:rag": "python test_rag.py"
   },
   "keywords": [],
   "author": "",

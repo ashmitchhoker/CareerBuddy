@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middleware/auth';
-import { GeminiService } from '../services/gemini';
+import { RAGChatService } from '../services/ragChat';
 import type {
   ChatStartRequest,
   ChatMessageRequest,
@@ -11,20 +11,16 @@ import type {
 const router = Router();
 const prisma = new PrismaClient();
 
-// Lazy initialization of Gemini service
-let geminiService: GeminiService | null = null;
+// Lazy initialization of RAG service
+let ragService: RAGChatService | null = null;
 
-function getGeminiService(): GeminiService {
-  if (!geminiService) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error(
-        'GEMINI_API_KEY is required. Please check your .env file.'
-      );
-    }
-    geminiService = new GeminiService(apiKey);
+function getRAGService(): RAGChatService {
+  if (!ragService) {
+    // Use Google provider by default (can also use 'groq')
+    const provider = process.env.RAG_PROVIDER || 'google';
+    ragService = new RAGChatService(provider);
   }
-  return geminiService;
+  return ragService;
 }
 
 // POST /api/chat/start - Start a new chat session
@@ -140,12 +136,15 @@ router.post('/start', authenticateToken, async (req: Request, res: Response) => 
 
         // Only create if still doesn't exist after final check
         if (!finalCheck) {
-          const aiMessage = await getGeminiService().generateInitialGreeting(
+          const aiMessage = await getRAGService().generateInitialGreeting(
             assessmentSummary,
             language
           );
 
-          initialMessage = aiMessage;
+          initialMessage = {
+            reply: aiMessage.reply,
+            intent: 'greeting',
+          };
 
           // Save bot message to database
           await prisma.chatMessage.create({
@@ -285,18 +284,10 @@ router.post('/message', authenticateToken, async (req: Request, res: Response) =
     // Use provided language or default to English
     const userLanguage = language || 'en';
 
-    // Generate bot response
-    const botResponse = await getGeminiService().generateChatResponse(
+    // Generate bot response using RAG
+    const botReply = await getRAGService().chat(
       message,
-      {
-        assessmentSummary,
-        previousMessages: contextMessages,
-        language: userLanguage,
-      },
-      {
-        maxAttempts: parseInt(process.env.MAX_RETRY_ATTEMPTS || '3'),
-        initialDelay: parseInt(process.env.RETRY_DELAY_MS || '1000'),
-      }
+      contextMessages
     );
 
     // Save bot message to database
@@ -304,15 +295,15 @@ router.post('/message', authenticateToken, async (req: Request, res: Response) =
       data: {
         user_id: userId,
         assessment_id: assessment?.id || null,
-        message_text: botResponse.reply,
+        message_text: botReply,
         sender: 'bot',
         is_results_chat: !!assessment,
       },
     });
 
     const response: ChatMessageResponse = {
-      reply: botResponse.reply,
-      intent: botResponse.intent,
+      reply: botReply,
+      intent: 'general', // RAG doesn't provide intent classification
     };
 
     res.json(response);
