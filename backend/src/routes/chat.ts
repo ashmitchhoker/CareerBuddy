@@ -16,7 +16,7 @@ const prisma = new PrismaClient();
 let ragService: RAGChatService | null = null;
 let geminiService: GeminiService | null = null;
 
-function getRAGService(): RAGChatService {
+export function getRAGService(): RAGChatService {
   if (!ragService) {
     // Use Google provider by default (can also use 'groq')
     const provider = process.env.RAG_PROVIDER || 'google';
@@ -146,11 +146,22 @@ router.post('/start', authenticateToken, async (req: Request, res: Response) => 
 
         // Only create if still doesn't exist after final check
         if (!finalCheck) {
+          // OPTIMIZATION: Initialize RAG in parallel with Gemini greeting generation
+          // This ensures RAG is ready when user asks follow-up questions (no loading delay)
+          const ragInitPromise = getRAGService().initialize().catch(err => {
+            console.error('Failed to preload RAG service:', err);
+            // Don't fail the request if RAG preload fails - it will lazy load on first use
+            return undefined;
+          });
+
           // Use Gemini for post-assessment initial greeting (preserves recommendation logic)
-          const aiResponse = await getGeminiService().generateInitialGreeting(
+          const geminiPromise = getGeminiService().generateInitialGreeting(
             assessmentSummary,
             language
           );
+
+          // Wait for both to complete (RAG init happens in parallel with Gemini)
+          const [aiResponse, _ragInit] = await Promise.all([geminiPromise, ragInitPromise]);
 
           initialMessage = {
             reply: aiResponse.reply,

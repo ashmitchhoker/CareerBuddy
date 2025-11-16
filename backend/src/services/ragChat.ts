@@ -84,8 +84,9 @@ export class RAGChatService {
 
   /**
    * Initialize the Python process (only once)
+   * Can be called externally to preload the service
    */
-  private async initialize(): Promise<void> {
+  async initialize(): Promise<void> {
     // If already initialized, return immediately
     if (this.isInitialized && this.pythonProcess) {
       return;
