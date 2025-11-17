@@ -253,7 +253,27 @@ ${assessmentSummary}
 
 CRITICAL INSTRUCTIONS:
 - You MUST ONLY mention career paths that appear in the "Career Recommendations" section above.
-- Use the EXACT career names from the recommendations list.
+- ${
+      language !== "en"
+        ? `IMPORTANT: For career names, you MUST translate them to ${
+            language === "hi"
+              ? "Hindi (हिंदी)"
+              : language === "te"
+              ? "Telugu (తెలుగు)"
+              : language === "ta"
+              ? "Tamil (தமிழ்)"
+              : language === "bn"
+              ? "Bengali (বাংলা)"
+              : "Gujarati (ગુજરાતી)"
+          } and then add the original English name in brackets.\n`
+        : ""
+    }
+- ${
+      language !== "en"
+        ? `Example format: "इलेक्ट्रॉनिक्स डिज़ाइनर (Electronics Designer)" or "गेम डिज़ाइनर और डेवलपर (Game Designer and Developer)"\n`
+        : ""
+    }
+- The English name in brackets must match EXACTLY from the recommendations list.
 - Do NOT suggest, invent, or mention any other careers that are not in the recommendations list.
 - If the summary shows "Matching Careers", you can ONLY use careers from that list.
 
@@ -261,10 +281,25 @@ Instruction:
 - Greet the student by name if provided in the summary.
 - Present the career paths from the "Career Recommendations" section in a structured format.
 - Format each career path clearly with:
-  * Career name (use **bold** or similar emphasis) - MUST match exactly from recommendations
-  * Brief reason why it fits (use the reason from recommendations)
-  * Key next steps (use the next steps from recommendations)
-- Use clear formatting with line breaks between each career path.
+  - Career name: ${
+    language !== "en"
+      ? `TRANSLATE the career name to ${
+          language === "hi"
+            ? "Hindi"
+            : language === "te"
+            ? "Telugu"
+            : language === "ta"
+            ? "Tamil"
+            : language === "bn"
+            ? "Bengali"
+            : "Gujarati"
+        }, then add the original English name in brackets. Example: "इलेक्ट्रॉनिक्स डिज़ाइनर (Electronics Designer)". The English name in brackets must match exactly from recommendations.`
+      : "Use **bold** or similar emphasis - MUST match exactly from recommendations"
+  }
+  - Brief reason why it fits (use the reason from recommendations)
+  - Key next steps (use the next steps from recommendations)
+- IMPORTANT: Do NOT use markdown list markers (* or -) in your response. Use plain text with line breaks.
+- Use clear formatting with line breaks between each career path and between sections.
 - Keep the overall message concise but informative.
 - End with encouragement to ask follow-up questions.
 - DO NOT add any careers that are not in the recommendations list above.
@@ -520,13 +555,38 @@ Respond with JSON {"reply":"...", "intent":"follow_up"}.`;
       instruction += `If you cannot find a suitable career in the list, you must still only recommend careers from that list.\n\n`;
     }
     instruction += `Each recommendation must include:\n`;
-    instruction += `- Career title (EXACT name from the numbered list above - copy it exactly)\n`;
+
+    // Add translation instruction for non-English languages
+    const languageNames: Record<Language, string> = {
+      en: "English",
+      hi: "Hindi",
+      te: "Telugu",
+      ta: "Tamil",
+      bn: "Bengali",
+      gu: "Gujarati",
+    };
+
+    if (lang !== "en") {
+      instruction += `- Career title: TRANSLATE the career name to ${languageNames[lang]}, then add the original English name in brackets.\n`;
+      instruction += `  Example format: "इलेक्ट्रॉनिक्स डिज़ाइनर (Electronics Designer)" or "गेम डिज़ाइनर (Game Designer)"\n`;
+      instruction += `  The English name in brackets must match EXACTLY from the numbered list above.\n`;
+    } else {
+      instruction += `- Career title (EXACT name from the numbered list above - copy it exactly)\n`;
+    }
+
     instruction += `- Why this career fits (based on RIASEC codes ${
       riasecScores ? `(${riasecScores.top3})` : ""
     }, values test responses, and personal information)\n`;
     instruction += `- Next steps to pursue this career\n`;
     instruction += `- Confidence/match percentage\n\n`;
-    instruction += `Remember: Only use career names from the numbered list. No exceptions.\n\n`;
+    instruction += `IMPORTANT FORMATTING: Do NOT use markdown list markers (* or -) in the output. Use plain text with clear line breaks and spacing.\n`;
+    instruction += `Remember: Only use career names from the numbered list. ${
+      lang !== "en"
+        ? "Translate to " +
+          languageNames[lang] +
+          " but keep English in brackets."
+        : "No exceptions."
+    }\n\n`;
     instruction += `Generate recommendations now:`;
 
     return `${systemPrompt}\n\n${assessmentSummary}${instruction}`;

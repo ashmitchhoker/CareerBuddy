@@ -51,9 +51,29 @@ export class RAGChatService {
 
   /**
    * Get the Python executable path
+   * On macOS/Linux, Python 3 is typically 'python3'
+   * Can be overridden with PYTHON_EXECUTABLE env variable
+   * Checks for venv first, then falls back to system python3
    */
   private getPythonExecutable(): string {
-    return 'python';
+    // Check for environment variable first
+    if (process.env.PYTHON_EXECUTABLE) {
+      return process.env.PYTHON_EXECUTABLE;
+    }
+    
+    // Check if venv exists in backend directory
+    const backendDir = path.resolve(__dirname, '../..');
+    const venvPython = process.platform === 'win32' 
+      ? path.join(backendDir, 'venv', 'Scripts', 'python.exe')
+      : path.join(backendDir, 'venv', 'bin', 'python3');
+    
+    if (fs.existsSync(venvPython)) {
+      return venvPython;
+    }
+    
+    // Default to python3 (common on macOS/Linux)
+    // Falls back to python on Windows or if python3 not available
+    return process.platform === 'win32' ? 'python' : 'python3';
   }
 
   /**
@@ -126,14 +146,20 @@ export class RAGChatService {
           }
         });
 
-        // Handle stderr - log errors
+        // Handle stderr - log errors and important messages
         this.pythonProcess.stderr?.on('data', (data: Buffer) => {
           const msg = data.toString().trim();
-          // Filter out routine messages
+          // Filter out routine messages but keep important ones
           if (!msg.includes('redirects.py') && 
-              !msg.includes('Loaded .env') &&
               !msg.includes('Started and waiting')) {
-            console.error(`[RAG]: ${msg}`);
+            // Log important messages (like Chroma DB loading, model downloads)
+            if (msg.includes('Chroma') || msg.includes('Loading') || msg.includes('model') || 
+                msg.includes('embedding') || msg.includes('Error') || msg.includes('Warning')) {
+              console.log(`[RAG]: ${msg}`);
+            } else if (msg.length > 0) {
+              // Log other non-empty messages
+              console.log(`[RAG]: ${msg}`);
+            }
           }
         });
 
@@ -168,9 +194,10 @@ export class RAGChatService {
         };
 
         const initPromise = new Promise<void>((resolveInit, rejectInit) => {
+          // Increased timeout to 180s (3 minutes) to allow for Chroma DB loading and embedding model download
           const timeout = setTimeout(() => {
-            rejectInit(new Error('Initialization timeout (60s)'));
-          }, 60000);
+            rejectInit(new Error('Initialization timeout (180s). The RAG service may still be loading. Please try again in a moment.'));
+          }, 180000);
 
           this.pendingRequests.push({
             resolve: (response: PythonResponse) => {
@@ -191,10 +218,13 @@ export class RAGChatService {
           });
         });
 
+        console.log('[RAG] Sending initialization command...');
         this.pythonProcess.stdin?.write(JSON.stringify(initCommand) + '\n');
 
         // Wait for initialization to complete
+        console.log('[RAG] Waiting for Python service to initialize (this may take 1-3 minutes on first run)...');
         await initPromise;
+        console.log('[RAG] Initialization complete!');
         resolve();
 
       } catch (error: any) {

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { ArrowLeft, Send, Bot, User, AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
@@ -21,7 +21,11 @@ import type { Page, UserProfile, Language, AssessmentResults } from "../App";
 interface ChatbotPageProps {
   userProfile: UserProfile;
   setUserProfile: (profile: UserProfile) => void;
-  navigateTo: (page: Page, displayResults?: boolean, assessmentId?: number) => void;
+  navigateTo: (
+    page: Page,
+    displayResults?: boolean,
+    assessmentId?: number
+  ) => void;
   showResults?: boolean;
   assessmentResults?: AssessmentResults | null;
   assessmentId?: number | null;
@@ -102,7 +106,9 @@ export function ChatbotPage({
     id: `initial-${Date.now()}-${Math.random()}`,
     text:
       text ||
-      fallbackInitialMessages[userProfile.language](userProfile.name || "Student"),
+      fallbackInitialMessages[userProfile.language](
+        userProfile.name || "Student"
+      ),
     sender: "bot",
     timestamp: new Date(),
   });
@@ -115,28 +121,34 @@ export function ChatbotPage({
       // CRITICAL: Reset messages when assessmentId changes to prevent showing messages from different assessments
       // This ensures we never show stale messages from previous assessments
       setMessages([]);
-      
+
       // Log for debugging
       if (assessmentId) {
-        console.log(`[ChatbotPage] Initializing chat for assessment ID: ${assessmentId}`);
+        console.log(
+          `[ChatbotPage] Initializing chat for assessment ID: ${assessmentId}`
+        );
       } else {
-        console.log('[ChatbotPage] Initializing general chat (no assessment ID) - starting fresh');
+        console.log(
+          "[ChatbotPage] Initializing general chat (no assessment ID) - starting fresh"
+        );
       }
-      
+
       try {
         // IMPORTANT: Only load existing messages if we have a specific assessmentId
         // If no assessmentId, start with a clean chat session (no old messages)
         // This prevents showing random chat history when clicking "Talk with Career Guide"
         if (!assessmentId) {
           // No assessmentId = general chat, start fresh with no old messages
-          console.log('[ChatbotPage] No assessmentId provided - starting fresh chat session');
+          console.log(
+            "[ChatbotPage] No assessmentId provided - starting fresh chat session"
+          );
           if (isMounted) {
             setMessages([createLocalInitialMessage()]);
             setIsInitializing(false);
           }
           return;
         }
-        
+
         // If we have results and assessmentId, try to load existing messages first
         // This avoids regenerating messages that already exist and makes "View Results" instant
         // IMPORTANT: Only load messages for THIS specific assessmentId
@@ -144,12 +156,16 @@ export function ChatbotPage({
           try {
             // Try to get existing chat history first (fast, no AI generation)
             // Pass assessmentId explicitly to ensure we only get messages for this assessment
-            const historyResponse = await assessmentService.getChatHistory(assessmentId);
+            const historyResponse = await assessmentService.getChatHistory(
+              assessmentId
+            );
             const historyData = historyResponse.data;
-            
+
             // Check if we have messages in the response (can be array or object with messages property)
-            const messagesArray = Array.isArray(historyData) ? historyData : (historyData?.messages || []);
-            
+            const messagesArray = Array.isArray(historyData)
+              ? historyData
+              : historyData?.messages || [];
+
             // STRICT FILTERING: Only show messages that belong to THIS assessment
             // This is critical - never show messages from other assessments
             const filteredMessages = messagesArray.filter((msg: any) => {
@@ -157,27 +173,42 @@ export function ChatbotPage({
               // Reject any message that doesn't have assessment_id or has a different assessment_id
               if (assessmentId) {
                 // Message must have assessment_id AND it must match
-                if (msg.assessment_id === undefined || msg.assessment_id === null) {
-                  console.warn('Rejecting message without assessment_id when assessmentId is provided:', msg);
+                if (
+                  msg.assessment_id === undefined ||
+                  msg.assessment_id === null
+                ) {
+                  console.warn(
+                    "Rejecting message without assessment_id when assessmentId is provided:",
+                    msg
+                  );
                   return false; // Reject messages without assessment_id
                 }
                 if (msg.assessment_id !== assessmentId) {
-                  console.warn(`Rejecting message from different assessment. Expected ${assessmentId}, got ${msg.assessment_id}:`, msg);
+                  console.warn(
+                    `Rejecting message from different assessment. Expected ${assessmentId}, got ${msg.assessment_id}:`,
+                    msg
+                  );
                   return false; // Reject messages from different assessments
                 }
                 return true; // Only accept if assessment_id matches exactly
               }
               // If no assessmentId, only include messages without assessment_id (general chat)
-              return msg.assessment_id === null || msg.assessment_id === undefined;
+              return (
+                msg.assessment_id === null || msg.assessment_id === undefined
+              );
             });
-            
+
             if (filteredMessages.length > 0) {
-              const loadedMessages: Message[] = filteredMessages.map((msg: any, index: number) => ({
-                id: msg.id || `msg-${Date.now()}-${index}-${Math.random()}`,
-                text: msg.message_text || msg.text,
-                sender: msg.sender === 'bot' ? 'bot' : 'user',
-                timestamp: new Date(msg.created_at || msg.timestamp || Date.now()),
-              }));
+              const loadedMessages: Message[] = filteredMessages.map(
+                (msg: any, index: number) => ({
+                  id: msg.id || `msg-${Date.now()}-${index}-${Math.random()}`,
+                  text: msg.message_text || msg.text,
+                  sender: msg.sender === "bot" ? "bot" : "user",
+                  timestamp: new Date(
+                    msg.created_at || msg.timestamp || Date.now()
+                  ),
+                })
+              );
               if (isMounted) {
                 setMessages(loadedMessages);
                 setIsInitializing(false);
@@ -186,7 +217,9 @@ export function ChatbotPage({
             }
           } catch (historyError) {
             // If history fetch fails, continue with normal flow
-            console.log("Could not load chat history, continuing with normal flow");
+            console.log(
+              "Could not load chat history, continuing with normal flow"
+            );
           }
         }
 
@@ -199,54 +232,72 @@ export function ChatbotPage({
         });
 
         const data = response.data;
-        
+
         if (isMounted) {
           // Load existing messages from database
           // CRITICAL: STRICTLY filter by assessmentId to prevent loading messages from different assessments
           if (data.existingMessages && data.existingMessages.length > 0) {
             // STRICT FILTERING: Only show messages that belong to THIS assessment
-            const filteredMessages = data.existingMessages.filter((msg: any) => {
-              // If we have an assessmentId, ONLY include messages that match it exactly
-              if (assessmentId) {
-                // Reject messages without assessment_id
-                if (msg.assessment_id === undefined || msg.assessment_id === null) {
-                  console.warn('Rejecting message without assessment_id when assessmentId is provided:', msg);
-                  return false;
+            const filteredMessages = data.existingMessages.filter(
+              (msg: any) => {
+                // If we have an assessmentId, ONLY include messages that match it exactly
+                if (assessmentId) {
+                  // Reject messages without assessment_id
+                  if (
+                    msg.assessment_id === undefined ||
+                    msg.assessment_id === null
+                  ) {
+                    console.warn(
+                      "Rejecting message without assessment_id when assessmentId is provided:",
+                      msg
+                    );
+                    return false;
+                  }
+                  // Reject messages from different assessments
+                  if (msg.assessment_id !== assessmentId) {
+                    console.warn(
+                      `Rejecting message from different assessment. Expected ${assessmentId}, got ${msg.assessment_id}:`,
+                      msg
+                    );
+                    return false;
+                  }
+                  return true; // Only accept if assessment_id matches exactly
                 }
-                // Reject messages from different assessments
-                if (msg.assessment_id !== assessmentId) {
-                  console.warn(`Rejecting message from different assessment. Expected ${assessmentId}, got ${msg.assessment_id}:`, msg);
-                  return false;
-                }
-                return true; // Only accept if assessment_id matches exactly
+                // If no assessmentId, only include messages without assessment_id (general chat)
+                return (
+                  msg.assessment_id === null || msg.assessment_id === undefined
+                );
               }
-              // If no assessmentId, only include messages without assessment_id (general chat)
-              return msg.assessment_id === null || msg.assessment_id === undefined;
-            });
-            
-            const loadedMessages: Message[] = filteredMessages.map((msg: any, index: number) => ({
-              id: msg.id || `msg-${Date.now()}-${index}-${Math.random()}`,
-              text: msg.text || msg.message_text,
-              sender: msg.sender === 'bot' ? 'bot' : 'user',
-              timestamp: new Date(msg.timestamp || msg.created_at),
-            }));
+            );
+
+            const loadedMessages: Message[] = filteredMessages.map(
+              (msg: any, index: number) => ({
+                id: msg.id || `msg-${Date.now()}-${index}-${Math.random()}`,
+                text: msg.text || msg.message_text,
+                sender: msg.sender === "bot" ? "bot" : "user",
+                timestamp: new Date(msg.timestamp || msg.created_at),
+              })
+            );
             setMessages(loadedMessages);
           } else {
             // No existing messages in database response
             // Check if there's an initial message from API, but be cautious:
             // If we have existingMessages from earlier checks, don't show initialMessage from API
             // This prevents showing duplicate initial greetings
-            const initialMessageText: string | undefined = data?.initialMessage?.reply;
-            
+            const initialMessageText: string | undefined =
+              data?.initialMessage?.reply;
+
             // IMPORTANT: Only show initialMessage if we truly have no existing messages
             // If we loaded messages from history earlier, don't show initialMessage to prevent duplicates
             if (initialMessageText && messages.length === 0) {
-              setMessages([{
-                id: `initial-${Date.now()}-${Math.random()}`,
-                text: initialMessageText,
-                sender: 'bot' as const,
-                timestamp: new Date(),
-              }]);
+              setMessages([
+                {
+                  id: `initial-${Date.now()}-${Math.random()}`,
+                  text: initialMessageText,
+                  sender: "bot" as const,
+                  timestamp: new Date(),
+                },
+              ]);
             } else if (messages.length === 0) {
               // Only show fallback if we have no messages at all
               setMessages([createLocalInitialMessage()]);
@@ -302,7 +353,7 @@ export function ChatbotPage({
     const userMessageTimestamp = new Date();
     // Generate unique ID - use timestamp + random to ensure uniqueness
     const newId = Date.now() + Math.random();
-    
+
     setMessages((prev) => [
       ...prev,
       {
@@ -329,7 +380,7 @@ export function ChatbotPage({
       const botMessageTimestamp = new Date();
       // Generate unique ID - use timestamp + random to ensure uniqueness
       const newId = Date.now() + Math.random();
-      
+
       setMessages((prev) => [
         ...prev,
         {
@@ -364,7 +415,6 @@ export function ChatbotPage({
       handleSendMessage();
     }
   };
-
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -450,18 +500,22 @@ export function ChatbotPage({
                       : "bg-white"
                   }`}
                 >
-                  <p 
+                  <p
                     className="text-sm whitespace-pre-wrap"
-                    dangerouslySetInnerHTML={{ 
+                    dangerouslySetInnerHTML={{
                       __html: (() => {
                         let html = message.text;
-                        // Convert markdown bold (**text**) to HTML bold first
-                        // Use non-greedy matching to handle multiple bold sections
-                        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                        // Remove markdown list markers (* or - at start of line)
+                        html = html.replace(/^\s*[\*\-]\s+/gm, "");
+                        // Convert markdown bold (**text**) to HTML bold
+                        html = html.replace(
+                          /\*\*(.+?)\*\*/g,
+                          "<strong>$1</strong>"
+                        );
                         // Convert newlines to <br /> (after bold conversion to avoid breaking tags)
-                        html = html.replace(/\n/g, '<br />');
+                        html = html.replace(/\n/g, "<br />");
                         return html;
-                      })()
+                      })(),
                     }}
                   />
                 </Card>
