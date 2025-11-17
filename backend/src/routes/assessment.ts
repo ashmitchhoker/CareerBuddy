@@ -505,6 +505,11 @@ router.post(
         recommendations: recommendations.recommendations,
         summary: recommendations.summary,
         smsMessage: recommendations.smsMessage,
+        riasecScores: riasecScores ? {
+          scores: riasecScores.scores,
+          top3: riasecScores.top3,
+          ordered: riasecScores.ordered,
+        } : undefined,
       };
 
       console.log(`Assessment completed for user: ${payload.userProfile.name}`);

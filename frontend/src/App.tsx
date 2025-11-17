@@ -9,6 +9,7 @@ import { ProcessingPage } from "./components/ProcessingPage";
 import { AssessmentHistoryPage } from "./components/AssessmentHistoryPage";
 import { AssessmentResponsesPage } from "./components/AssessmentResponsesPage";
 import { SettingsPage } from "./components/SettingsPage";
+import { ResultsPage } from "./components/ResultsPage";
 import { authService } from "./services/authService";
 import { assessmentService } from "./services/assessmentService";
 
@@ -51,6 +52,11 @@ export interface AssessmentResults {
   }[];
   summary: string;
   smsMessage?: string;
+  riasecScores?: {
+    scores: { [code: string]: number };
+    top3: string;
+    ordered: Array<{ code: string; score: number }>;
+  };
 }
 
 export interface UserProfile {
@@ -98,7 +104,7 @@ function App() {
   const loadSavedAssessment = async (homeData?: any) => {
     try {
       let dataToUse = homeData;
-      
+
       // If homeData not provided, fetch it
       if (!dataToUse) {
         const response = await assessmentService.getHome();
@@ -108,27 +114,29 @@ function App() {
       if (dataToUse?.saved_assessment) {
         const savedAssessmentData = dataToUse.saved_assessment;
         const testResponses = savedAssessmentData.test_responses || [];
-        
+
         if (testResponses.length > 0) {
-          const testOrder: TestType[] = ['riasec', 'values', 'personal'];
+          const testOrder: TestType[] = ["riasec", "values", "personal"];
           const totalQuestions = {
             riasec: 48,
             values: 20,
             personal: 15,
           };
-          
+
           // Find the current active test (the one that's not completed or has the most progress)
           let activeTest: TestType | null = null;
           let activeTestProgress = 0;
           let activeTestAnswers: { [key: number]: string | string[] } = {};
-          
+
           // Calculate overall progress and find active test
           let totalProgress = 0;
           let testCount = 0;
-          
+
           for (const testTypeItem of testOrder) {
-            const testResponse = testResponses.find((tr: any) => tr.test_type === testTypeItem);
-            
+            const testResponse = testResponses.find(
+              (tr: any) => tr.test_type === testTypeItem
+            );
+
             if (testResponse) {
               if (testResponse.is_completed) {
                 totalProgress += 100;
@@ -137,27 +145,37 @@ function App() {
                 // Get progress for incomplete test
                 const questionCount = totalQuestions[testTypeItem] || 0;
                 let testProgress = 0;
-                
-                if (questionCount > 0 && testResponse.current_question_index > 0) {
-                  testProgress = Math.min(100, (testResponse.current_question_index / questionCount) * 100);
+
+                if (
+                  questionCount > 0 &&
+                  testResponse.current_question_index > 0
+                ) {
+                  testProgress = Math.min(
+                    100,
+                    (testResponse.current_question_index / questionCount) * 100
+                  );
                 }
-                
+
                 totalProgress += testProgress;
                 testCount++;
-                
+
                 // Set as active test if it has more progress than current active
                 if (testProgress > activeTestProgress || activeTest === null) {
                   activeTest = testTypeItem as TestType;
                   activeTestProgress = testProgress;
                   // Try to load answers for this test
                   try {
-                    const testDataResponse = await assessmentService.getTestData(testTypeItem, savedAssessmentData.id);
+                    const testDataResponse =
+                      await assessmentService.getTestData(
+                        testTypeItem,
+                        savedAssessmentData.id
+                      );
                     const testData = testDataResponse.data;
                     if (testData.saved_answers) {
                       activeTestAnswers = testData.saved_answers;
                     }
                   } catch (error) {
-                    console.error('Error loading test answers:', error);
+                    console.error("Error loading test answers:", error);
                   }
                 }
               }
@@ -169,28 +187,36 @@ function App() {
               }
             }
           }
-          
+
           // Calculate overall progress as average
           const overallProgress = testCount > 0 ? totalProgress / testCount : 0;
-          
+
           if (activeTest) {
             const savedAssessment: SavedAssessment = {
               testType: activeTest,
               progress: activeTestProgress,
               overallProgress: Math.min(100, Math.max(0, overallProgress)),
               answers: activeTestAnswers,
-              currentQuestionIndex: testResponses.find((tr: any) => tr.test_type === activeTest)?.current_question_index || 0,
+              currentQuestionIndex:
+                testResponses.find((tr: any) => tr.test_type === activeTest)
+                  ?.current_question_index || 0,
             };
-            
+
             setSavedAssessment(savedAssessment);
             setSelectedAssessmentId(savedAssessmentData.id);
-            
+
             // Also save to localStorage as backup
             try {
-              localStorage.setItem('pathfinder_saved_assessment', JSON.stringify(savedAssessment));
-              localStorage.setItem('pathfinder_current_assessment_id', savedAssessmentData.id.toString());
+              localStorage.setItem(
+                "pathfinder_saved_assessment",
+                JSON.stringify(savedAssessment)
+              );
+              localStorage.setItem(
+                "pathfinder_current_assessment_id",
+                savedAssessmentData.id.toString()
+              );
             } catch (error) {
-              console.error('Error saving to localStorage:', error);
+              console.error("Error saving to localStorage:", error);
             }
           }
         }
@@ -198,20 +224,20 @@ function App() {
         // No saved assessment, clear state
         setSavedAssessment(null);
         setSelectedAssessmentId(null);
-        localStorage.removeItem('pathfinder_saved_assessment');
-        localStorage.removeItem('pathfinder_current_assessment_id');
+        localStorage.removeItem("pathfinder_saved_assessment");
+        localStorage.removeItem("pathfinder_current_assessment_id");
       }
     } catch (error) {
-      console.error('Error loading saved assessment:', error);
+      console.error("Error loading saved assessment:", error);
       // Try to restore from localStorage as fallback
       try {
-        const savedData = localStorage.getItem('pathfinder_saved_assessment');
+        const savedData = localStorage.getItem("pathfinder_saved_assessment");
         if (savedData) {
           const parsed = JSON.parse(savedData);
           setSavedAssessment(parsed);
         }
       } catch (localError) {
-        console.error('Error loading from localStorage:', localError);
+        console.error("Error loading from localStorage:", localError);
       }
     }
   };
@@ -222,13 +248,12 @@ function App() {
       const historyResponse = await assessmentService.getHistory();
       const historyData = historyResponse.data;
       if (historyData.completed_assessments) {
-        const assessments = historyData.completed_assessments
-          .map((a: any) => ({
-            id: a.id,
-            completedAt: new Date(a.completed_at),
-            tests: testFlow,
-            has_chat: a.has_chat || false,
-          }));
+        const assessments = historyData.completed_assessments.map((a: any) => ({
+          id: a.id,
+          completedAt: new Date(a.completed_at),
+          tests: testFlow,
+          has_chat: a.has_chat || false,
+        }));
         // Sort: assessments with chat first, then by completed_at desc
         const sorted = assessments.sort((a: any, b: any) => {
           if (a.has_chat && !b.has_chat) return -1;
@@ -238,19 +263,18 @@ function App() {
         setCompletedAssessments(sorted);
       }
     } catch (historyError) {
-      console.error('Error loading assessment history:', historyError);
+      console.error("Error loading assessment history:", historyError);
       // Fallback to home data if history fails
       try {
         const homeResponse = await assessmentService.getHome();
         const homeData = homeResponse.data;
         if (homeData.completed_assessments) {
-          const assessments = homeData.completed_assessments
-            .map((a: any) => ({
-              id: a.id,
-              completedAt: new Date(a.completed_at),
-              tests: testFlow,
-              has_chat: a.has_chat || false,
-            }));
+          const assessments = homeData.completed_assessments.map((a: any) => ({
+            id: a.id,
+            completedAt: new Date(a.completed_at),
+            tests: testFlow,
+            has_chat: a.has_chat || false,
+          }));
           const sorted = assessments.sort((a: any, b: any) => {
             if (a.has_chat && !b.has_chat) return -1;
             if (!a.has_chat && b.has_chat) return 1;
@@ -259,7 +283,7 @@ function App() {
           setCompletedAssessments(sorted);
         }
       } catch (homeError) {
-        console.error('Error loading assessments from home:', homeError);
+        console.error("Error loading assessments from home:", homeError);
       }
     }
   };
@@ -269,7 +293,8 @@ function App() {
     const checkAuth = async () => {
       try {
         // Check for guest mode
-        const guestMode = localStorage.getItem('pathfinder_guest_mode') === 'true';
+        const guestMode =
+          localStorage.getItem("pathfinder_guest_mode") === "true";
         if (guestMode) {
           setIsGuestMode(true);
           setSetupComplete(true);
@@ -282,7 +307,7 @@ function App() {
           // Try to fetch home data to verify token
           const response = await assessmentService.getHome();
           const homeData = response.data;
-          
+
           setUserProfile({
             name: homeData.user_profile.name || "<Student name>",
             class: homeData.user_profile.grade || "10th",
@@ -334,13 +359,13 @@ function App() {
       setSelectedAssessmentId(assessmentId);
     }
     setCurrentPage(page);
-    
+
     // Reload saved assessment when navigating to home page
     if (page === "home" && !isGuestMode && authService.isAuthenticated()) {
       try {
         await loadSavedAssessment();
       } catch (error) {
-        console.error('Error reloading saved assessment:', error);
+        console.error("Error reloading saved assessment:", error);
       }
     }
   };
@@ -352,7 +377,7 @@ function App() {
       setAssessmentResults(null);
       setShowResults(false);
       setSavedAssessment(null);
-      
+
       // If in guest mode, use a temporary assessment ID
       if (isGuestMode) {
         setSelectedAssessmentId(Date.now());
@@ -360,7 +385,7 @@ function App() {
         navigateTo("test-form");
         return;
       }
-      
+
       const response = await assessmentService.startAssessment();
       const data = response.data;
       setSelectedAssessmentId(data.assessment_id);
@@ -379,7 +404,7 @@ function App() {
 
   const handleLogout = async () => {
     await authService.logout();
-    localStorage.removeItem('pathfinder_guest_mode');
+    localStorage.removeItem("pathfinder_guest_mode");
     setIsGuestMode(false);
     setSetupComplete(false);
     setCurrentPage("login");
@@ -392,7 +417,7 @@ function App() {
 
   const handleGuestMode = () => {
     setIsGuestMode(true);
-    localStorage.setItem('pathfinder_guest_mode', 'true');
+    localStorage.setItem("pathfinder_guest_mode", "true");
     setSetupComplete(true);
     setUserProfile({
       name: "Guest User",
@@ -441,7 +466,7 @@ function App() {
             navigateTo={navigateTo}
             onLoginComplete={async () => {
               setIsGuestMode(false);
-              localStorage.removeItem('pathfinder_guest_mode');
+              localStorage.removeItem("pathfinder_guest_mode");
               setSetupComplete(true);
               // Load assessments after login
               await loadAssessments();
@@ -478,8 +503,8 @@ function App() {
             navigateTo={navigateTo}
             onAssessmentDeleted={async (assessmentId) => {
               // Remove from local state
-              setCompletedAssessments(prev => 
-                prev.filter(a => a.id !== assessmentId)
+              setCompletedAssessments((prev) =>
+                prev.filter((a) => a.id !== assessmentId)
               );
             }}
             onAssessmentsUpdated={(assessments) => {
@@ -502,6 +527,15 @@ function App() {
             setUserProfile={setUserProfile}
             navigateTo={navigateTo}
             showResults={showResults}
+            assessmentResults={assessmentResults}
+            assessmentId={selectedAssessmentId}
+          />
+        )}
+        {currentPage === "results" && assessmentResults && (
+          <ResultsPage
+            userProfile={userProfile}
+            setUserProfile={setUserProfile}
+            navigateTo={navigateTo}
             assessmentResults={assessmentResults}
             assessmentId={selectedAssessmentId}
           />
@@ -552,4 +586,3 @@ function App() {
 }
 
 export default App;
-

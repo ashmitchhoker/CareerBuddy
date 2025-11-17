@@ -338,7 +338,9 @@ export function ProcessingPage({
                       {t.successDesc}
                     </p>
                     <Button
-                      onClick={() => navigateTo("chatbot", true, assessmentId || undefined)}
+                      onClick={() =>
+                        navigateTo("results", true, assessmentId || undefined)
+                      }
                       className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
                     >
                       {t.viewResults}

@@ -35,6 +35,11 @@ export interface AssessmentResponse {
   recommendations: CareerRecommendation[];
   summary: string;
   smsMessage?: string;
+  riasecScores?: {
+    scores: { [code: string]: number }; // Normalized scores (0-100)
+    top3: string; // Top 3 codes like "RIA"
+    ordered: Array<{ code: string; score: number }>; // All 6 codes ordered by score
+  };
 }
 
 export interface ChatMessage {

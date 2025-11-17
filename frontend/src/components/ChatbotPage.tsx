@@ -1,5 +1,12 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
-import { ArrowLeft, Send, Bot, User, AlertCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Send,
+  Bot,
+  User,
+  AlertCircle,
+  BarChart3,
+} from "lucide-react";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
 import { Card } from "./ui/card";
@@ -7,15 +14,6 @@ import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Alert, AlertDescription } from "./ui/alert";
 import { LanguageSelector } from "./LanguageSelector";
 import { assessmentService } from "../services/assessmentService";
-import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "./ui/dialog";
 import type { Page, UserProfile, Language, AssessmentResults } from "../App";
 
 interface ChatbotPageProps {
@@ -446,6 +444,16 @@ export function ChatbotPage({
                 <p className="text-green-600 text-sm">● Online</p>
               </div>
             </div>
+            {assessmentId && assessmentResults && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigateTo("results", true, assessmentId)}
+                title="View Results"
+              >
+                <BarChart3 className="h-5 w-5" />
+              </Button>
+            )}
             <LanguageSelector
               language={userProfile.language}
               onLanguageChange={handleLanguageChange}
