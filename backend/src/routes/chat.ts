@@ -10,7 +10,10 @@ import type {
 } from '../types';
 
 const router = Router();
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  log: ['error', 'warn'],
+  // Ensure UTF-8 for all database operations
+});
 
 // Lazy initialization of services
 let ragService: RAGChatService | null = null;
@@ -306,10 +309,11 @@ router.post('/message', authenticateToken, async (req: Request, res: Response) =
     // Use provided language or default to English
     const userLanguage = language || 'en';
 
-    // Generate bot response using RAG
+    // Generate bot response using RAG with language parameter
     const botReply = await getRAGService().chat(
       message,
-      contextMessages
+      contextMessages,
+      userLanguage
     );
 
     // Save bot message to database

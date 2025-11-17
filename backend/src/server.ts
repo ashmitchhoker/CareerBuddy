@@ -43,6 +43,10 @@ async function initializeRAGService() {
 initializeRAGService();
 
 // Middleware
+// CRITICAL: Parse JSON with UTF-8 encoding to support Hindi/Telugu/etc.
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 app.use(
   cors({
     origin: function (origin, callback) {
