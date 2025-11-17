@@ -43,7 +43,8 @@ backend/prisma/migrations/
 *.tsbuildinfo
 
 
-
+backend/test_unicode.js
+backend/delete_neerja_chat.js
 
 
 
