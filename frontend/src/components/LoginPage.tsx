@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { GraduationCap, LogIn, UserPlus } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';

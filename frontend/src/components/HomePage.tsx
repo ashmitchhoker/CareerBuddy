@@ -1,3 +1,4 @@
+import React from 'react';
 import { GraduationCap, MessageCircle, ClipboardList, User, Settings, LogOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { Progress } from './ui/progress';

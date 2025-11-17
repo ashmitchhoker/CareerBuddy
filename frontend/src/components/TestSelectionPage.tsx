@@ -1,7 +1,14 @@
-import { ArrowLeft, Brain, Heart, UserCircle, ChevronRight, Info } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card, CardContent } from './ui/card';
-import { Badge } from './ui/badge';
+import {
+  ArrowLeft,
+  Brain,
+  Heart,
+  UserCircle,
+  ChevronRight,
+  Info,
+} from "lucide-react";
+import { Button } from "./ui/button";
+import { Card, CardContent } from "./ui/card";
+import { Badge } from "./ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,9 +18,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from './ui/alert-dialog';
-import { useState } from 'react';
-import type { Page, UserProfile, TestType, Language } from '../App';
+} from "./ui/alert-dialog";
+import React, { useState } from "react";
+import type { Page, UserProfile, TestType, Language } from "../App";
 
 interface TestSelectionPageProps {
   userProfile: UserProfile;
@@ -22,155 +29,214 @@ interface TestSelectionPageProps {
 
 const translations = {
   en: {
-    chooseAssessment: 'Choose Assessment',
-    selectTest: 'Select a test to begin your career discovery journey',
-    tip: 'Tip:',
-    tipText: 'Complete all three assessments for the most accurate career recommendations. You can save your progress and continue later!',
-    allAssessments: 'All assessments are designed specifically for 10th class students',
-    confidential: 'Your responses are confidential and used only for career guidance',
-    riasecTitle: 'RIASEC Personality Assessment',
-    riasecDesc: 'Discover your career personality type through the RIASEC assessment',
-    valuesTitle: 'Values & Motivation',
-    valuesDesc: 'Understand what drives you and what matters most in your career',
-    personalTitle: 'Personal Information',
-    personalDesc: 'Tell us about yourself, your interests, and academic preferences',
-    beforeYouBegin: 'Before You Begin',
-    startAssessment: 'Start Assessment',
-    cancel: 'Cancel',
-    riasecInstruction: "You'll now answer questions to help us understand your career personality type using the RIASEC model (Realistic, Investigative, Artistic, Social, Enterprising, Conventional).\n\nFor each question, choose how much you agree — from Strongly Disagree to Strongly Agree.\n\nThere are no right or wrong answers, just what feels true for you.\n\nYour responses will help us identify your top RIASEC personality types and suggest careers that match your interests.",
-    valuesInstruction: "This part explores what motivates you and what you value in a career — things like teamwork, creativity, stability, or social impact.\n\nAgain, select how much you agree with each statement on the scale from Strongly Disagree to Strongly Agree.\n\nBe honest — your answers help us find careers that match not just your skills, but also your values and goals.",
-    personalInstruction: "Finally, we'd love to know a few quick details to personalize your guidance.\n\nChoose the subjects you most enjoy, share any career interests or goals you have, and tell us your plans after 10th grade.\n\nThis information stays private and is only used to make your results more accurate and useful."
+    chooseAssessment: "Choose Assessment",
+    selectTest: "Select a test to begin your career discovery journey",
+    tip: "Tip:",
+    tipText:
+      "Complete all three assessments for the most accurate career recommendations. You can save your progress and continue later!",
+    allAssessments:
+      "All assessments are designed specifically for 10th class students",
+    confidential:
+      "Your responses are confidential and used only for career guidance",
+    riasecTitle: "RIASEC Personality Assessment",
+    riasecDesc:
+      "Discover your career personality type through the RIASEC assessment",
+    valuesTitle: "Values & Motivation",
+    valuesDesc:
+      "Understand what drives you and what matters most in your career",
+    personalTitle: "Personal Information",
+    personalDesc:
+      "Tell us about yourself, your interests, and academic preferences",
+    beforeYouBegin: "Before You Begin",
+    startAssessment: "Start Assessment",
+    cancel: "Cancel",
+    riasecInstruction:
+      "You'll now answer questions to help us understand your career personality type using the RIASEC model (Realistic, Investigative, Artistic, Social, Enterprising, Conventional).\n\nFor each question, choose how much you agree — from Strongly Disagree to Strongly Agree.\n\nThere are no right or wrong answers, just what feels true for you.\n\nYour responses will help us identify your top RIASEC personality types and suggest careers that match your interests.",
+    valuesInstruction:
+      "This part explores what motivates you and what you value in a career — things like teamwork, creativity, stability, or social impact.\n\nAgain, select how much you agree with each statement on the scale from Strongly Disagree to Strongly Agree.\n\nBe honest — your answers help us find careers that match not just your skills, but also your values and goals.",
+    personalInstruction:
+      "Finally, we'd love to know a few quick details to personalize your guidance.\n\nChoose the subjects you most enjoy, share any career interests or goals you have, and tell us your plans after 10th grade.\n\nThis information stays private and is only used to make your results more accurate and useful.",
   },
   hi: {
-    chooseAssessment: 'मूल्यांकन चुनें',
-    selectTest: 'अपनी करियर खोज यात्रा शुरू करने के लिए एक परीक्षा चुनें',
-    tip: 'सुझाव:',
-    tipText: 'सबसे सटीक करियर अनुशंसाओं के लिए तीनों मूल्यांकन पूरे करें। आप अपनी प्रगति सहेज सकते हैं और बाद में जारी रख सकते हैं!',
-    allAssessments: 'सभी मूल्यांकन विशेष रूप से 10वीं कक्षा के छात्रों के लिए डिज़ाइन किए गए हैं',
-    confidential: 'आपकी प्रतिक्रियाएं गोपनीय हैं और केवल करियर मार्गदर्शन के लिए उपयोग की जाती हैं',
-    riasecTitle: 'RIASEC व्यक्तित्व मूल्यांकन',
-    riasecDesc: 'RIASEC मूल्यांकन के माध्यम से अपने करियर व्यक्तित्व प्रकार की खोज करें',
-    valuesTitle: 'मूल्य और प्रेरणा',
-    valuesDesc: 'समझें कि आपको क्या प्रेरित करता है और आपके करियर में सबसे महत्वपूर्ण क्या है',
-    personalTitle: 'व्यक्तिगत जानकारी',
-    personalDesc: 'हमें अपने बारे में, अपनी रुचियों और शैक्षणिक प्राथमिकताओं के बारे में बताएं',
-    beforeYouBegin: 'शुरू करने से पहले',
-    startAssessment: 'मूल्यांकन शुरू करें',
-    cancel: 'रद्द करें',
-    riasecInstruction: "अब आप RIASEC मॉडल (यथार्थवादी, अन्वेषक, कलात्मक, सामाजिक, उद्यमी, पारंपरिक) का उपयोग करके अपने करियर व्यक्तित्व प्रकार को समझने में मदद करने के लिए प्रश्नों का उत्तर देंगे।\n\nप्रत्येक प्रश्न के लिए, चुनें कि आप कितना सहमत हैं — पूरी तरह असहमत से पूरी तरह सहमत तक।\n\nकोई सही या गलत उत्तर नहीं हैं, बस जो आपके लिए सच लगता है।\n\nआपकी प्रतिक्रियाएं हमें आपके शीर्ष RIASEC व्यक्तित्व प्रकारों की पहचान करने और आपकी रुचियों से मेल खाने वाले करियर सुझाने में मदद करेंगी।",
-    valuesInstruction: "यह भाग यह पता लगाता है कि आपको क्या प्रेरित करता है और आप करियर में क्या महत्व देते हैं — जैसे टीम वर्क, रचनात्मकता, स्थिरता, या सामाजिक प्रभाव।\n\nफिर से, पूरी तरह असहमत से पूरी तरह सहमत तक के पैमाने पर प्रत्येक कथन से आप कितना सहमत हैं चुनें।\n\nईमानदार रहें — आपके उत्तर हमें ऐसे करियर खोजने में मदद करते हैं जो न केवल आपके कौशल से बल्कि आपके मूल्यों और लक्ष्यों से भी मेल खाते हैं।",
-    personalInstruction: "अंत में, हम आपके मार्गदर्शन को व्यक्तिगत बनाने के लिए कुछ त्वरित विवरण जानना चाहेंगे।\n\nउन विषयों को चुनें जिनका आप सबसे अधिक आनंद लेते हैं, किसी भी करियर रुचि या लक्ष्य को साझा करें, और हमें 10वीं के बाद अपनी योजनाओं के बारे में बताएं।\n\nयह जानकारी निजी रहती है और केवल आपके परिणामों को अधिक सटीक और उपयोगी बनाने के लिए उपयोग की जाती है।"
+    chooseAssessment: "मूल्यांकन चुनें",
+    selectTest: "अपनी करियर खोज यात्रा शुरू करने के लिए एक परीक्षा चुनें",
+    tip: "सुझाव:",
+    tipText:
+      "सबसे सटीक करियर अनुशंसाओं के लिए तीनों मूल्यांकन पूरे करें। आप अपनी प्रगति सहेज सकते हैं और बाद में जारी रख सकते हैं!",
+    allAssessments:
+      "सभी मूल्यांकन विशेष रूप से 10वीं कक्षा के छात्रों के लिए डिज़ाइन किए गए हैं",
+    confidential:
+      "आपकी प्रतिक्रियाएं गोपनीय हैं और केवल करियर मार्गदर्शन के लिए उपयोग की जाती हैं",
+    riasecTitle: "RIASEC व्यक्तित्व मूल्यांकन",
+    riasecDesc:
+      "RIASEC मूल्यांकन के माध्यम से अपने करियर व्यक्तित्व प्रकार की खोज करें",
+    valuesTitle: "मूल्य और प्रेरणा",
+    valuesDesc:
+      "समझें कि आपको क्या प्रेरित करता है और आपके करियर में सबसे महत्वपूर्ण क्या है",
+    personalTitle: "व्यक्तिगत जानकारी",
+    personalDesc:
+      "हमें अपने बारे में, अपनी रुचियों और शैक्षणिक प्राथमिकताओं के बारे में बताएं",
+    beforeYouBegin: "शुरू करने से पहले",
+    startAssessment: "मूल्यांकन शुरू करें",
+    cancel: "रद्द करें",
+    riasecInstruction:
+      "अब आप RIASEC मॉडल (यथार्थवादी, अन्वेषक, कलात्मक, सामाजिक, उद्यमी, पारंपरिक) का उपयोग करके अपने करियर व्यक्तित्व प्रकार को समझने में मदद करने के लिए प्रश्नों का उत्तर देंगे।\n\nप्रत्येक प्रश्न के लिए, चुनें कि आप कितना सहमत हैं — पूरी तरह असहमत से पूरी तरह सहमत तक।\n\nकोई सही या गलत उत्तर नहीं हैं, बस जो आपके लिए सच लगता है।\n\nआपकी प्रतिक्रियाएं हमें आपके शीर्ष RIASEC व्यक्तित्व प्रकारों की पहचान करने और आपकी रुचियों से मेल खाने वाले करियर सुझाने में मदद करेंगी।",
+    valuesInstruction:
+      "यह भाग यह पता लगाता है कि आपको क्या प्रेरित करता है और आप करियर में क्या महत्व देते हैं — जैसे टीम वर्क, रचनात्मकता, स्थिरता, या सामाजिक प्रभाव।\n\nफिर से, पूरी तरह असहमत से पूरी तरह सहमत तक के पैमाने पर प्रत्येक कथन से आप कितना सहमत हैं चुनें।\n\nईमानदार रहें — आपके उत्तर हमें ऐसे करियर खोजने में मदद करते हैं जो न केवल आपके कौशल से बल्कि आपके मूल्यों और लक्ष्यों से भी मेल खाते हैं।",
+    personalInstruction:
+      "अंत में, हम आपके मार्गदर्शन को व्यक्तिगत बनाने के लिए कुछ त्वरित विवरण जानना चाहेंगे।\n\nउन विषयों को चुनें जिनका आप सबसे अधिक आनंद लेते हैं, किसी भी करियर रुचि या लक्ष्य को साझा करें, और हमें 10वीं के बाद अपनी योजनाओं के बारे में बताएं।\n\nयह जानकारी निजी रहती है और केवल आपके परिणामों को अधिक सटीक और उपयोगी बनाने के लिए उपयोग की जाती है।",
   },
   te: {
-    chooseAssessment: 'అంచనాను ఎంచుకోండి',
-    selectTest: 'మీ కెరీర్ అన్వేషణ ప్రయాణాన్ని ప్రారంభించడానికి ఒక పరీక్షను ఎంచుకోండి',
-    tip: 'చిట్కా:',
-    tipText: 'అత్యంత ఖచ్చితమైన కెరీర్ సిఫార్సుల కోసం మూడు అంచనాలను పూర్తి చేయండి. మీరు మీ పురోగతిని సేవ్ చేసి తరువాత కొనసాగించవచ్చు!',
-    allAssessments: 'అన్ని అంచనాలు ప్రత్యేకంగా 10వ తరగతి విద్యార్థుల కోసం రూపొందించబడ్డాయి',
-    confidential: 'మీ ప్రతిస్పందనలు గోప్యంగా ఉంటాయి మరియు కెరీర్ మార్గదర్శకత్వం కోసం మాత్రమే ఉపయోగించబడతాయి',
-    riasecTitle: 'RIASEC వ్యక్తిత్వ అంచనా',
-    riasecDesc: 'RIASEC అంచనా ద్వారా మీ కెరీర్ వ్యక్తిత్వ రకాన్ని కనుగొనండి',
-    valuesTitle: 'విలువలు & ప్రేరణ',
-    valuesDesc: 'మిమ్మల్ని ఏది ప్రేరేపిస్తుందో మరియు మీ కెరీర్‌లో అత్యంత ముఖ్యమైనది ఏమిటో అర్థం చేసుకోండి',
-    personalTitle: 'వ్యక్తిగత సమాచారం',
-    personalDesc: 'మీ గురించి, మీ ఆసక్తుల మరియు విద్యా ప్రాధాన్యతల గురించి మాకు చెప్పండి',
-    beforeYouBegin: 'మీరు ప్రారంభించే ముందు',
-    startAssessment: 'అంచనాను ప్రారంభించండి',
-    cancel: 'రద్దు చేయి',
-    riasecInstruction: "RIASEC మోడల్ (వాస్తవిక, పరిశోధనాత్మక, కళాత్మక, సామాజిక, వ్యాపార, సాంప్రదాయిక) ఉపయోగించి మీ కెరీర్ వ్యక్తిత్వ రకాన్ని అర్థం చేసుకోవడంలో సహాయపడే ప్రశ్నలకు మీరు ఇప్పుడు సమాధానం ఇస్తారు।\n\nప్రతి ప్రశ్నకు, మీరు ఎంతగా అంగీకరిస్తారో ఎంచుకోండి — పూర్తిగా అంగీకరించను నుండి పూర్తిగా అంగీకరిస్తున్నాను వరకు।\n\nసరైన లేదా తప్పు సమాధానాలు లేవు, మీకు నిజం అనిపించేది మాత్రమే।\n\nమీ ప్రతిస్పందనలు మీ టాప్ RIASEC వ్యక్తిత్వ రకాలను గుర్తించడంలో మరియు మీ ఆసక్తులకు సరిపోయే కెరీర్‌లను సూచించడంలో మాకు సహాయపడతాయి।",
-    valuesInstruction: "ఈ భాగం మిమ్మల్ని ఏమి ప్రేరేపిస్తుందో మరియు మీరు కెరీర్‌లో దేనికి విలువ ఇస్తారో అన్వేషిస్తుంది — టీమ్‌వర్క్, సృజనాత్మకత, స్థిరత్వం లేదా సామాజిక ప్రభావం వంటివి।\n\nమళ్లీ, పూర్తిగా అంగీకరించను నుండి పూర్తిగా అంగీకరిస్తున్నాను వరకు ప్రతి ప్రకటనతో మీరు ఎంతగా అంగీకరిస్తారో ఎంచుకోండి।\n\nనిజాయితీగా ఉండండి — మీ సమాధానాలు మీ నైపుణ్యాలకే కాకుండా మీ విలువలు మరియు లక్ష్యాలకు కూడా సరిపోయే కెరీర్‌లను కనుగొనడంలో మాకు సహాయపడతాయి।",
-    personalInstruction: "చివరగా, మీ మార్గదర్శకత్వాన్ని వ్యక్తిగతీకరించడానికి మేము కొన్ని త్వరిత వివరాలను తెలుసుకోవాలనుకుంటున్నాము।\n\nమీరు ఎక్కువగా ఆనందించే విషయాలను ఎంచుకోండి, మీకు ఉన్న ఏదైనా కెరీర్ ఆసక్తులు లేదా లక్ష్యాలను పంచుకోండి మరియు 10వ తరువాత మీ ప్రణాళికల గురించి మాకు చెప్పండి।\n\nఈ సమాచారం ప్రైవేట్‌గా ఉంటుంది మరియు మీ ఫలితాలను మరింత ఖచ్చితమైన మరియు ఉపయోగకరంగా చేయడానికి మాత్రమే ఉపయోగించబడుతుంది।"
+    chooseAssessment: "అంచనాను ఎంచుకోండి",
+    selectTest:
+      "మీ కెరీర్ అన్వేషణ ప్రయాణాన్ని ప్రారంభించడానికి ఒక పరీక్షను ఎంచుకోండి",
+    tip: "చిట్కా:",
+    tipText:
+      "అత్యంత ఖచ్చితమైన కెరీర్ సిఫార్సుల కోసం మూడు అంచనాలను పూర్తి చేయండి. మీరు మీ పురోగతిని సేవ్ చేసి తరువాత కొనసాగించవచ్చు!",
+    allAssessments:
+      "అన్ని అంచనాలు ప్రత్యేకంగా 10వ తరగతి విద్యార్థుల కోసం రూపొందించబడ్డాయి",
+    confidential:
+      "మీ ప్రతిస్పందనలు గోప్యంగా ఉంటాయి మరియు కెరీర్ మార్గదర్శకత్వం కోసం మాత్రమే ఉపయోగించబడతాయి",
+    riasecTitle: "RIASEC వ్యక్తిత్వ అంచనా",
+    riasecDesc: "RIASEC అంచనా ద్వారా మీ కెరీర్ వ్యక్తిత్వ రకాన్ని కనుగొనండి",
+    valuesTitle: "విలువలు & ప్రేరణ",
+    valuesDesc:
+      "మిమ్మల్ని ఏది ప్రేరేపిస్తుందో మరియు మీ కెరీర్‌లో అత్యంత ముఖ్యమైనది ఏమిటో అర్థం చేసుకోండి",
+    personalTitle: "వ్యక్తిగత సమాచారం",
+    personalDesc:
+      "మీ గురించి, మీ ఆసక్తుల మరియు విద్యా ప్రాధాన్యతల గురించి మాకు చెప్పండి",
+    beforeYouBegin: "మీరు ప్రారంభించే ముందు",
+    startAssessment: "అంచనాను ప్రారంభించండి",
+    cancel: "రద్దు చేయి",
+    riasecInstruction:
+      "RIASEC మోడల్ (వాస్తవిక, పరిశోధనాత్మక, కళాత్మక, సామాజిక, వ్యాపార, సాంప్రదాయిక) ఉపయోగించి మీ కెరీర్ వ్యక్తిత్వ రకాన్ని అర్థం చేసుకోవడంలో సహాయపడే ప్రశ్నలకు మీరు ఇప్పుడు సమాధానం ఇస్తారు।\n\nప్రతి ప్రశ్నకు, మీరు ఎంతగా అంగీకరిస్తారో ఎంచుకోండి — పూర్తిగా అంగీకరించను నుండి పూర్తిగా అంగీకరిస్తున్నాను వరకు।\n\nసరైన లేదా తప్పు సమాధానాలు లేవు, మీకు నిజం అనిపించేది మాత్రమే।\n\nమీ ప్రతిస్పందనలు మీ టాప్ RIASEC వ్యక్తిత్వ రకాలను గుర్తించడంలో మరియు మీ ఆసక్తులకు సరిపోయే కెరీర్‌లను సూచించడంలో మాకు సహాయపడతాయి।",
+    valuesInstruction:
+      "ఈ భాగం మిమ్మల్ని ఏమి ప్రేరేపిస్తుందో మరియు మీరు కెరీర్‌లో దేనికి విలువ ఇస్తారో అన్వేషిస్తుంది — టీమ్‌వర్క్, సృజనాత్మకత, స్థిరత్వం లేదా సామాజిక ప్రభావం వంటివి।\n\nమళ్లీ, పూర్తిగా అంగీకరించను నుండి పూర్తిగా అంగీకరిస్తున్నాను వరకు ప్రతి ప్రకటనతో మీరు ఎంతగా అంగీకరిస్తారో ఎంచుకోండి।\n\nనిజాయితీగా ఉండండి — మీ సమాధానాలు మీ నైపుణ్యాలకే కాకుండా మీ విలువలు మరియు లక్ష్యాలకు కూడా సరిపోయే కెరీర్‌లను కనుగొనడంలో మాకు సహాయపడతాయి।",
+    personalInstruction:
+      "చివరగా, మీ మార్గదర్శకత్వాన్ని వ్యక్తిగతీకరించడానికి మేము కొన్ని త్వరిత వివరాలను తెలుసుకోవాలనుకుంటున్నాము।\n\nమీరు ఎక్కువగా ఆనందించే విషయాలను ఎంచుకోండి, మీకు ఉన్న ఏదైనా కెరీర్ ఆసక్తులు లేదా లక్ష్యాలను పంచుకోండి మరియు 10వ తరువాత మీ ప్రణాళికల గురించి మాకు చెప్పండి।\n\nఈ సమాచారం ప్రైవేట్‌గా ఉంటుంది మరియు మీ ఫలితాలను మరింత ఖచ్చితమైన మరియు ఉపయోగకరంగా చేయడానికి మాత్రమే ఉపయోగించబడుతుంది।",
   },
   ta: {
-    chooseAssessment: 'மதிப்பீட்டைத் தேர்வுசெய்க',
-    selectTest: 'உங்கள் தொழில் கண்டுபிடிப்பு பயணத்தைத் தொடங்க ஒரு சோதனையைத் தேர்ந்தெடுக்கவும்',
-    tip: 'குறிப்பு:',
-    tipText: 'மிகவும் துல்லியமான தொழில் பரிந்துரைகளுக்கு மூன்று மதிப்பீடுகளையும் முடிக்கவும். நீங்கள் உங்கள் முன்னேற்றத்தைச் சேமித்து பின்னர் தொடரலாம்!',
-    allAssessments: 'அனைத்து மதிப்பீடுகளும் குறிப்பாக 10வது வகுப்பு மாணவர்களுக்காக வடிவமைக்கப்பட்டுள்ளன',
-    confidential: 'உங்கள் பதில்கள் ரகசியமானவை மற்றும் தொழில் வழிகாட்டுதலுக்கு மட்டுமே பயன்படுத்தப்படும்',
-    riasecTitle: 'RIASEC ஆளுமை மதிப்பீடு',
-    riasecDesc: 'RIASEC மதிப்பீடு மூலம் உங்கள் தொழில் ஆளுமை வகையைக் கண்டறியவும்',
-    valuesTitle: 'மதிப்புகள் & உந்துதல்',
-    valuesDesc: 'உங்களை எது தூண்டுகிறது மற்றும் உங்கள் தொழிலில் மிக முக்கியமானது என்ன என்பதைப் புரிந்துகொள்ளுங்கள்',
-    personalTitle: 'தனிப்பட்ட தகவல்',
-    personalDesc: 'உங்களைப் பற்றியும், உங்கள் ஆர்வங்கள் மற்றும் கல்வி விருப்பத்தேர்வுகளைப் பற்றியும் எங்களுக்குச் சொல்லுங்கள்',
-    beforeYouBegin: 'நீங்கள் தொடங்கும் முன்',
-    startAssessment: 'மதிப்பீட்டைத் தொடங்கு',
-    cancel: 'ரத்து செய்',
-    riasecInstruction: "RIASEC மாதிரியை (உண்மையான, விசாரணை, கலை, சமூக, தொழில்முனைவு, வழமையான) பயன்படுத்தி உங்கள் தொழில் ஆளுமை வகையைப் புரிந்துகொள்ள உதவும் கேள்விகளுக்கு நீங்கள் இப்போது பதிலளிப்பீர்கள்।\n\nஒவ்வொரு கேள்விக்கும், நீங்கள் எவ்வளவு ஒப்புக்கொள்கிறீர்கள் என்பதைத் தேர்வுசெய்க — முற்றிலும் உடன்படவில்லை முதல் முற்றிலும் ஒப்புக்கொள்கிறேன் வரை।\n\nசரியான அல்லது தவறான பதில்கள் இல்லை, உங்களுக்கு உண்மை என்று தோன்றுவதுதான்।\n\nஉங்கள் பதில்கள் உங்கள் முதன்மை RIASEC ஆளுமை வகைகளை அடையாளம் காணவும் உங்கள் ஆர்வங்களுக்கு பொருந்தும் தொழில்களை பரிந்துரைக்கவும் உதவும்।",
-    valuesInstruction: "இந்த பகுதி உங்களை எது தூண்டுகிறது மற்றும் நீங்கள் தொழிலில் எதை மதிக்கிறீர்கள் என்பதை ஆராய்கிறது — குழுப்பணி, படைப்பாற்றல், நிலைத்தன்மை அல்லது சமூக தாக்கம் போன்றவை।\n\nமீண்டும், முற்றிலும் உடன்படவில்லை முதல் முற்றிலும் ஒப்புக்கொள்கிறேன் வரையிலான அளவில் ஒவ்வொரு அறிக்கையுடனும் நீங்கள் எவ்வளவு ஒப்புக்கொள்கிறீர்கள் என்பதைத் தேர்ந்தெடுக்கவும்।\n\nநேர்மையாக இருங்கள் — உங்கள் பதில்கள் உங்கள் திறன்களை மட்டுமல்ல, உங்கள் மதிப்புகள் மற்றும் இலக்குகளையும் பொருத்தும் தொழில்களைக் கண்டுபிடிக்க உதவுகின்றன।",
-    personalInstruction: "இறுதியாக, உங்கள் வழிகாட்டுதலைத் தனிப்பயனாக்க சில விரைவான விவரங்களை நாங்கள் அறிய விரும்புகிறோம்।\n\nநீங்கள் மிகவும் விரும்பும் பாடங்களைத் தேர்வுசெய்க, உங்களிடம் உள்ள எந்த தொழில் ஆர்வங்கள் அல்லது இலக்குகளையும் பகிர்ந்து கொள்ளுங்கள், மற்றும் 10வது க்குப் பிறகு உங்கள் திட்டங்களைப் பற்றி எங்களுக்குச் சொல்லுங்கள்।\n\nஇந்தத் தகவல் தனிப்பட்டதாக இருக்கும் மற்றும் உங்கள் முடிவுகளை மிகவும் துல்லியமாகவும் பயனுள்ளதாகவும் செய்ய மட்டுமே பயன்படுத்தப்படும்."
+    chooseAssessment: "மதிப்பீட்டைத் தேர்வுசெய்க",
+    selectTest:
+      "உங்கள் தொழில் கண்டுபிடிப்பு பயணத்தைத் தொடங்க ஒரு சோதனையைத் தேர்ந்தெடுக்கவும்",
+    tip: "குறிப்பு:",
+    tipText:
+      "மிகவும் துல்லியமான தொழில் பரிந்துரைகளுக்கு மூன்று மதிப்பீடுகளையும் முடிக்கவும். நீங்கள் உங்கள் முன்னேற்றத்தைச் சேமித்து பின்னர் தொடரலாம்!",
+    allAssessments:
+      "அனைத்து மதிப்பீடுகளும் குறிப்பாக 10வது வகுப்பு மாணவர்களுக்காக வடிவமைக்கப்பட்டுள்ளன",
+    confidential:
+      "உங்கள் பதில்கள் ரகசியமானவை மற்றும் தொழில் வழிகாட்டுதலுக்கு மட்டுமே பயன்படுத்தப்படும்",
+    riasecTitle: "RIASEC ஆளுமை மதிப்பீடு",
+    riasecDesc:
+      "RIASEC மதிப்பீடு மூலம் உங்கள் தொழில் ஆளுமை வகையைக் கண்டறியவும்",
+    valuesTitle: "மதிப்புகள் & உந்துதல்",
+    valuesDesc:
+      "உங்களை எது தூண்டுகிறது மற்றும் உங்கள் தொழிலில் மிக முக்கியமானது என்ன என்பதைப் புரிந்துகொள்ளுங்கள்",
+    personalTitle: "தனிப்பட்ட தகவல்",
+    personalDesc:
+      "உங்களைப் பற்றியும், உங்கள் ஆர்வங்கள் மற்றும் கல்வி விருப்பத்தேர்வுகளைப் பற்றியும் எங்களுக்குச் சொல்லுங்கள்",
+    beforeYouBegin: "நீங்கள் தொடங்கும் முன்",
+    startAssessment: "மதிப்பீட்டைத் தொடங்கு",
+    cancel: "ரத்து செய்",
+    riasecInstruction:
+      "RIASEC மாதிரியை (உண்மையான, விசாரணை, கலை, சமூக, தொழில்முனைவு, வழமையான) பயன்படுத்தி உங்கள் தொழில் ஆளுமை வகையைப் புரிந்துகொள்ள உதவும் கேள்விகளுக்கு நீங்கள் இப்போது பதிலளிப்பீர்கள்।\n\nஒவ்வொரு கேள்விக்கும், நீங்கள் எவ்வளவு ஒப்புக்கொள்கிறீர்கள் என்பதைத் தேர்வுசெய்க — முற்றிலும் உடன்படவில்லை முதல் முற்றிலும் ஒப்புக்கொள்கிறேன் வரை।\n\nசரியான அல்லது தவறான பதில்கள் இல்லை, உங்களுக்கு உண்மை என்று தோன்றுவதுதான்।\n\nஉங்கள் பதில்கள் உங்கள் முதன்மை RIASEC ஆளுமை வகைகளை அடையாளம் காணவும் உங்கள் ஆர்வங்களுக்கு பொருந்தும் தொழில்களை பரிந்துரைக்கவும் உதவும்।",
+    valuesInstruction:
+      "இந்த பகுதி உங்களை எது தூண்டுகிறது மற்றும் நீங்கள் தொழிலில் எதை மதிக்கிறீர்கள் என்பதை ஆராய்கிறது — குழுப்பணி, படைப்பாற்றல், நிலைத்தன்மை அல்லது சமூக தாக்கம் போன்றவை।\n\nமீண்டும், முற்றிலும் உடன்படவில்லை முதல் முற்றிலும் ஒப்புக்கொள்கிறேன் வரையிலான அளவில் ஒவ்வொரு அறிக்கையுடனும் நீங்கள் எவ்வளவு ஒப்புக்கொள்கிறீர்கள் என்பதைத் தேர்ந்தெடுக்கவும்।\n\nநேர்மையாக இருங்கள் — உங்கள் பதில்கள் உங்கள் திறன்களை மட்டுமல்ல, உங்கள் மதிப்புகள் மற்றும் இலக்குகளையும் பொருத்தும் தொழில்களைக் கண்டுபிடிக்க உதவுகின்றன।",
+    personalInstruction:
+      "இறுதியாக, உங்கள் வழிகாட்டுதலைத் தனிப்பயனாக்க சில விரைவான விவரங்களை நாங்கள் அறிய விரும்புகிறோம்।\n\nநீங்கள் மிகவும் விரும்பும் பாடங்களைத் தேர்வுசெய்க, உங்களிடம் உள்ள எந்த தொழில் ஆர்வங்கள் அல்லது இலக்குகளையும் பகிர்ந்து கொள்ளுங்கள், மற்றும் 10வது க்குப் பிறகு உங்கள் திட்டங்களைப் பற்றி எங்களுக்குச் சொல்லுங்கள்।\n\nஇந்தத் தகவல் தனிப்பட்டதாக இருக்கும் மற்றும் உங்கள் முடிவுகளை மிகவும் துல்லியமாகவும் பயனுள்ளதாகவும் செய்ய மட்டுமே பயன்படுத்தப்படும்.",
   },
   bn: {
-    chooseAssessment: 'মূল্যায়ন নির্বাচন করুন',
-    selectTest: 'আপনার ক্যারিয়ার আবিষ্কার যাত্রা শুরু করতে একটি পরীক্ষা নির্বাচন করুন',
-    tip: 'পরামর্শ:',
-    tipText: 'সবচেয়ে সঠিক ক্যারিয়ার সুপারিশের জন্য তিনটি মূল্যায়ন সম্পূর্ণ করুন। আপনি আপনার অগ্রগতি সংরক্ষণ করতে এবং পরে চালিয়ে যেতে পারেন!',
-    allAssessments: 'সমস্ত মূল্যায়ন বিশেষভাবে 10 শ্রেণীর শিক্ষার্থীদের জন্য ডিজাইন করা হয়েছে',
-    confidential: 'আপনার প্রতিক্রিয়া গোপনীয় এবং শুধুমাত্র ক্যারিয়ার নির্দেশনার জন্য ব্যবহৃত হয়',
-    riasecTitle: 'RIASEC ব্যক্তিত্ব মূল্যায়ন',
-    riasecDesc: 'RIASEC মূল্যায়নের মাধ্যমে আপনার ক্যারিয়ার ব্যক্তিত্বের ধরন আবিষ্কার করুন',
-    valuesTitle: 'মূল্যবোধ ও প্রেরণা',
-    valuesDesc: 'বুঝুন কি আপনাকে চালিত করে এবং আপনার ক্যারিয়ারে সবচেয়ে গুরুত্বপূর্ণ কি',
-    personalTitle: 'ব্যক্তিগত তথ্য',
-    personalDesc: 'আপনার সম্পর্কে, আপনার আগ্রহ এবং শিক্ষাগত পছন্দ সম্পর্কে আমাদের বলুন',
-    beforeYouBegin: 'আপনি শুরু করার আগে',
-    startAssessment: 'মূল্যায়ন শুরু করুন',
-    cancel: 'বাতিল করুন',
-    riasecInstruction: "RIASEC মডেল (বাস্তববাদী, অনুসন্ধানমূলক, শৈল্পিক, সামাজিক, উদ্যোগী, প্রচলিত) ব্যবহার করে আপনার ক্যারিয়ার ব্যক্তিত্বের ধরন বুঝতে সাহায্য করার জন্য আপনি এখন প্রশ্নের উত্তর দেবেন।\n\nপ্রতিটি প্রশ্নের জন্য, আপনি কতটা সম্মত তা চয়ন করুন — সম্পূর্ণভাবে অসম্মত থেকে সম্পূর্ণভাবে সম্মত পর্যন্ত।\n\nকোনো সঠিক বা ভুল উত্তর নেই, শুধু যা আপনার কাছে সত্য মনে হয়।\n\nআপনার প্রতিক্রিয়া আমাদের আপনার শীর্ষ RIASEC ব্যক্তিত্বের ধরন চিহ্নিত করতে এবং আপনার আগ্রহের সাথে মিলে যায় এমন ক্যারিয়ার সুপারিশ করতে সাহায্য করবে।",
-    valuesInstruction: "এই অংশটি অন্বেষণ করে যে কী আপনাকে অনুপ্রাণিত করে এবং আপনি ক্যারিয়ারে কী মূল্য দেন — যেমন টিমওয়ার্ক, সৃজনশীলতা, স্থিতিশীলতা বা সামাজিক প্রভাব।\n\nআবার, সম্পূর্ণভাবে অসম্মত থেকে সম্পূর্ণভাবে সম্মত পর্যন্ত স্কেলে প্রতিটি বিবৃতির সাথে আপনি কতটা সম্মত তা নির্বাচন করুন।\n\nসৎ থাকুন — আপনার উত্তর আমাদের এমন ক্যারিয়ার খুঁজে পেতে সাহায্য করে যা শুধু আপনার দক্ষতা নয়, আপনার মূল্যবোধ এবং লক্ষ্যের সাথেও মিলে।",
-    personalInstruction: "অবশেষে, আপনার নির্দেশনা ব্যক্তিগত করার জন্য আমরা কিছু দ্রুত বিবরণ জানতে চাই।\n\nআপনি সবচেয়ে বেশি উপভোগ করেন এমন বিষয়গুলি চয়ন করুন, আপনার যেকোনো ক্যারিয়ার আগ্রহ বা লক্ষ্য শেয়ার করুন এবং 10 শ্রেণীর পরে আপনার পরিকল্পনা আমাদের বলুন।\n\nএই তথ্য ব্যক্তিগত থাকে এবং শুধুমাত্র আপনার ফলাফল আরও সঠিক এবং দরকারী করতে ব্যবহৃত হয়।"
+    chooseAssessment: "মূল্যায়ন নির্বাচন করুন",
+    selectTest:
+      "আপনার ক্যারিয়ার আবিষ্কার যাত্রা শুরু করতে একটি পরীক্ষা নির্বাচন করুন",
+    tip: "পরামর্শ:",
+    tipText:
+      "সবচেয়ে সঠিক ক্যারিয়ার সুপারিশের জন্য তিনটি মূল্যায়ন সম্পূর্ণ করুন। আপনি আপনার অগ্রগতি সংরক্ষণ করতে এবং পরে চালিয়ে যেতে পারেন!",
+    allAssessments:
+      "সমস্ত মূল্যায়ন বিশেষভাবে 10 শ্রেণীর শিক্ষার্থীদের জন্য ডিজাইন করা হয়েছে",
+    confidential:
+      "আপনার প্রতিক্রিয়া গোপনীয় এবং শুধুমাত্র ক্যারিয়ার নির্দেশনার জন্য ব্যবহৃত হয়",
+    riasecTitle: "RIASEC ব্যক্তিত্ব মূল্যায়ন",
+    riasecDesc:
+      "RIASEC মূল্যায়নের মাধ্যমে আপনার ক্যারিয়ার ব্যক্তিত্বের ধরন আবিষ্কার করুন",
+    valuesTitle: "মূল্যবোধ ও প্রেরণা",
+    valuesDesc:
+      "বুঝুন কি আপনাকে চালিত করে এবং আপনার ক্যারিয়ারে সবচেয়ে গুরুত্বপূর্ণ কি",
+    personalTitle: "ব্যক্তিগত তথ্য",
+    personalDesc:
+      "আপনার সম্পর্কে, আপনার আগ্রহ এবং শিক্ষাগত পছন্দ সম্পর্কে আমাদের বলুন",
+    beforeYouBegin: "আপনি শুরু করার আগে",
+    startAssessment: "মূল্যায়ন শুরু করুন",
+    cancel: "বাতিল করুন",
+    riasecInstruction:
+      "RIASEC মডেল (বাস্তববাদী, অনুসন্ধানমূলক, শৈল্পিক, সামাজিক, উদ্যোগী, প্রচলিত) ব্যবহার করে আপনার ক্যারিয়ার ব্যক্তিত্বের ধরন বুঝতে সাহায্য করার জন্য আপনি এখন প্রশ্নের উত্তর দেবেন।\n\nপ্রতিটি প্রশ্নের জন্য, আপনি কতটা সম্মত তা চয়ন করুন — সম্পূর্ণভাবে অসম্মত থেকে সম্পূর্ণভাবে সম্মত পর্যন্ত।\n\nকোনো সঠিক বা ভুল উত্তর নেই, শুধু যা আপনার কাছে সত্য মনে হয়।\n\nআপনার প্রতিক্রিয়া আমাদের আপনার শীর্ষ RIASEC ব্যক্তিত্বের ধরন চিহ্নিত করতে এবং আপনার আগ্রহের সাথে মিলে যায় এমন ক্যারিয়ার সুপারিশ করতে সাহায্য করবে।",
+    valuesInstruction:
+      "এই অংশটি অন্বেষণ করে যে কী আপনাকে অনুপ্রাণিত করে এবং আপনি ক্যারিয়ারে কী মূল্য দেন — যেমন টিমওয়ার্ক, সৃজনশীলতা, স্থিতিশীলতা বা সামাজিক প্রভাব।\n\nআবার, সম্পূর্ণভাবে অসম্মত থেকে সম্পূর্ণভাবে সম্মত পর্যন্ত স্কেলে প্রতিটি বিবৃতির সাথে আপনি কতটা সম্মত তা নির্বাচন করুন।\n\nসৎ থাকুন — আপনার উত্তর আমাদের এমন ক্যারিয়ার খুঁজে পেতে সাহায্য করে যা শুধু আপনার দক্ষতা নয়, আপনার মূল্যবোধ এবং লক্ষ্যের সাথেও মিলে।",
+    personalInstruction:
+      "অবশেষে, আপনার নির্দেশনা ব্যক্তিগত করার জন্য আমরা কিছু দ্রুত বিবরণ জানতে চাই।\n\nআপনি সবচেয়ে বেশি উপভোগ করেন এমন বিষয়গুলি চয়ন করুন, আপনার যেকোনো ক্যারিয়ার আগ্রহ বা লক্ষ্য শেয়ার করুন এবং 10 শ্রেণীর পরে আপনার পরিকল্পনা আমাদের বলুন।\n\nএই তথ্য ব্যক্তিগত থাকে এবং শুধুমাত্র আপনার ফলাফল আরও সঠিক এবং দরকারী করতে ব্যবহৃত হয়।",
   },
   gu: {
-    chooseAssessment: 'મૂલ્યાંકન પસંદ કરો',
-    selectTest: 'તમારી કારકિર્દી શોધ યાત્રા શરૂ કરવા માટે એક પરીક્ષા પસંદ કરો',
-    tip: 'ટિપ:',
-    tipText: 'સૌથી ચોક્કસ કારકિર્દી ભલામણો માટે ત્રણેય મૂલ્યાંકન પૂર્ણ કરો. તમે તમારી પ્રગતિ સાચવી શકો છો અને પછીથી ચાલુ રાખી શકો છો!',
-    allAssessments: 'બધા મૂલ્યાંકન ખાસ કરીને 10મા ધોરણના વિદ્યાર્થીઓ માટે ડિઝાઇન કરવામાં આવ્યા છે',
-    confidential: 'તમારા પ્રતિભાવો ગોપનીય છે અને માત્ર કારકિર્દી માર્ગદર્શન માટે ઉપયોગ થાય છે',
-    riasecTitle: 'RIASEC વ્યક્તિત્વ મૂલ્યાંકન',
-    riasecDesc: 'RIASEC મૂલ્યાંકન દ્વારા તમારા કારકિર્દી વ્યક્તિત્વ પ્રકાર શોધો',
-    valuesTitle: 'મૂલ્યો અને પ્રેરણા',
-    valuesDesc: 'સમજો કે તમને શું પ્રેરિત કરે છે અને તમારી કારકિર્દીમાં સૌથી મહત્વપૂર્ણ શું છે',
-    personalTitle: 'વ્યક્તિગત માહિતી',
-    personalDesc: 'તમારા વિશે, તમારી રુચિઓ અને શૈક્ષણિક પસંદગીઓ વિશે અમને જણાવો',
-    beforeYouBegin: 'તમે શરૂ કરો તે પહેલાં',
-    startAssessment: 'મૂલ્યાંકન શરૂ કરો',
-    cancel: 'રદ કરો',
-    riasecInstruction: "RIASEC મોડલ (વાસ્તવિક, તપાસ, કલાત્મક, સામાજિક, વ્યવસાયિક, પરંપરાગત) નો ઉપયોગ કરીને તમારા કારકિર્દી વ્યક્તિત્વ પ્રકારને સમજવામાં મદદ કરવા માટે તમે હવે પ્રશ્નોના જવાબ આપશો।\n\nદરેક પ્રશ્ન માટે, તમે કેટલા સહમત છો તે પસંદ કરો — સંપૂર્ણપણે અસહમત થી સંપૂર્ણપણે સહમત સુધી।\n\nકોઈ સાચા કે ખોટા જવાબો નથી, ફક્ત તમારા માટે જે સાચું લાગે છે તે।\n\nતમારા પ્રતિભાવો અમને તમારા ટોપ RIASEC વ્યક્તિત્વ પ્રકારોને ઓળખવામાં અને તમારી રુચિઓ સાથે મેળ ખાતી કારકિર્દી સૂચવવામાં મદદ કરશે।",
-    valuesInstruction: "આ ભાગ અન્વેષણ કરે છે કે તમને શું પ્રેરિત કરે છે અને તમે કારકિર્દીમાં શું મહત્વ આપો છો — જેમ કે ટીમવર્ક, સર્જનાત્મકતા, સ્થિરતા અથવા સામાજિક પ્રભાવ।\n\nફરીથી, સંપૂર્ણપણે અસહમત થી સંપૂર્ણપણે સહમત સુધીના સ્કેલ પર દરેક નિવેદન સાથે તમે કેટલા સહમત છો તે પસંદ કરો।\n\nપ્રામાણિક રહો — તમારા જવાબો અમને તમારી કુશળતા જ નહીં, પરંતુ તમારી મૂલ્યો અને લક્ષ્યો સાથે પણ મેળ ખાતી કારકિર્દી શોધવામાં મદદ કરે છે।",
-    personalInstruction: "છેલ્લે, અમે તમારા માર્ગદર્શનને વ્યક્તિગત બનાવવા માટે થોડી ઝડપી વિગતો જાણવા માંગીએ છીએ।\n\nતમે સૌથી વધુ આનંદ માણો છો તેવા વિષયો પસંદ કરો, તમારી કોઈપણ કારકિર્દી રુચિઓ અથવા લક્ષ્યો શેર કરો, અને 10મા પછી તમારી યોજનાઓ અમને જણાવો।\n\nઆ માહિતી ખાનગી રહે છે અને માત્ર તમારા પરિણામોને વધુ ચોક્કસ અને ઉપયોગી બનાવવા માટે ઉપયોગમાં લેવાય છે।"
-  }
+    chooseAssessment: "મૂલ્યાંકન પસંદ કરો",
+    selectTest: "તમારી કારકિર્દી શોધ યાત્રા શરૂ કરવા માટે એક પરીક્ષા પસંદ કરો",
+    tip: "ટિપ:",
+    tipText:
+      "સૌથી ચોક્કસ કારકિર્દી ભલામણો માટે ત્રણેય મૂલ્યાંકન પૂર્ણ કરો. તમે તમારી પ્રગતિ સાચવી શકો છો અને પછીથી ચાલુ રાખી શકો છો!",
+    allAssessments:
+      "બધા મૂલ્યાંકન ખાસ કરીને 10મા ધોરણના વિદ્યાર્થીઓ માટે ડિઝાઇન કરવામાં આવ્યા છે",
+    confidential:
+      "તમારા પ્રતિભાવો ગોપનીય છે અને માત્ર કારકિર્દી માર્ગદર્શન માટે ઉપયોગ થાય છે",
+    riasecTitle: "RIASEC વ્યક્તિત્વ મૂલ્યાંકન",
+    riasecDesc:
+      "RIASEC મૂલ્યાંકન દ્વારા તમારા કારકિર્દી વ્યક્તિત્વ પ્રકાર શોધો",
+    valuesTitle: "મૂલ્યો અને પ્રેરણા",
+    valuesDesc:
+      "સમજો કે તમને શું પ્રેરિત કરે છે અને તમારી કારકિર્દીમાં સૌથી મહત્વપૂર્ણ શું છે",
+    personalTitle: "વ્યક્તિગત માહિતી",
+    personalDesc:
+      "તમારા વિશે, તમારી રુચિઓ અને શૈક્ષણિક પસંદગીઓ વિશે અમને જણાવો",
+    beforeYouBegin: "તમે શરૂ કરો તે પહેલાં",
+    startAssessment: "મૂલ્યાંકન શરૂ કરો",
+    cancel: "રદ કરો",
+    riasecInstruction:
+      "RIASEC મોડલ (વાસ્તવિક, તપાસ, કલાત્મક, સામાજિક, વ્યવસાયિક, પરંપરાગત) નો ઉપયોગ કરીને તમારા કારકિર્દી વ્યક્તિત્વ પ્રકારને સમજવામાં મદદ કરવા માટે તમે હવે પ્રશ્નોના જવાબ આપશો।\n\nદરેક પ્રશ્ન માટે, તમે કેટલા સહમત છો તે પસંદ કરો — સંપૂર્ણપણે અસહમત થી સંપૂર્ણપણે સહમત સુધી।\n\nકોઈ સાચા કે ખોટા જવાબો નથી, ફક્ત તમારા માટે જે સાચું લાગે છે તે।\n\nતમારા પ્રતિભાવો અમને તમારા ટોપ RIASEC વ્યક્તિત્વ પ્રકારોને ઓળખવામાં અને તમારી રુચિઓ સાથે મેળ ખાતી કારકિર્દી સૂચવવામાં મદદ કરશે।",
+    valuesInstruction:
+      "આ ભાગ અન્વેષણ કરે છે કે તમને શું પ્રેરિત કરે છે અને તમે કારકિર્દીમાં શું મહત્વ આપો છો — જેમ કે ટીમવર્ક, સર્જનાત્મકતા, સ્થિરતા અથવા સામાજિક પ્રભાવ।\n\nફરીથી, સંપૂર્ણપણે અસહમત થી સંપૂર્ણપણે સહમત સુધીના સ્કેલ પર દરેક નિવેદન સાથે તમે કેટલા સહમત છો તે પસંદ કરો।\n\nપ્રામાણિક રહો — તમારા જવાબો અમને તમારી કુશળતા જ નહીં, પરંતુ તમારી મૂલ્યો અને લક્ષ્યો સાથે પણ મેળ ખાતી કારકિર્દી શોધવામાં મદદ કરે છે।",
+    personalInstruction:
+      "છેલ્લે, અમે તમારા માર્ગદર્શનને વ્યક્તિગત બનાવવા માટે થોડી ઝડપી વિગતો જાણવા માંગીએ છીએ।\n\nતમે સૌથી વધુ આનંદ માણો છો તેવા વિષયો પસંદ કરો, તમારી કોઈપણ કારકિર્દી રુચિઓ અથવા લક્ષ્યો શેર કરો, અને 10મા પછી તમારી યોજનાઓ અમને જણાવો।\n\nઆ માહિતી ખાનગી રહે છે અને માત્ર તમારા પરિણામોને વધુ ચોક્કસ અને ઉપયોગી બનાવવા માટે ઉપયોગમાં લેવાય છે।",
+  },
 };
 
 const tests = [
   {
-    id: 'riasec' as TestType,
+    id: "riasec" as TestType,
     icon: Brain,
-    color: 'blue',
-    duration: '20 mins',
+    color: "blue",
+    duration: "20 mins",
     questions: 48,
-    gradient: 'from-blue-500 to-cyan-500'
+    gradient: "from-blue-500 to-cyan-500",
   },
   {
-    id: 'values' as TestType,
+    id: "values" as TestType,
     icon: Heart,
-    color: 'purple',
-    duration: '15 mins',
+    color: "purple",
+    duration: "15 mins",
     questions: 20,
-    gradient: 'from-purple-500 to-pink-500'
+    gradient: "from-purple-500 to-pink-500",
   },
   {
-    id: 'personal' as TestType,
+    id: "personal" as TestType,
     icon: UserCircle,
-    color: 'green',
-    duration: '10 mins',
+    color: "green",
+    duration: "10 mins",
     questions: 15,
-    gradient: 'from-green-500 to-emerald-500'
-  }
+    gradient: "from-green-500 to-emerald-500",
+  },
 ];
 
-export function TestSelectionPage({ userProfile, navigateTo }: TestSelectionPageProps) {
+export function TestSelectionPage({
+  userProfile,
+  navigateTo,
+}: TestSelectionPageProps) {
   const [selectedTest, setSelectedTest] = useState<TestType | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const t = translations[userProfile.language];
@@ -183,46 +249,46 @@ export function TestSelectionPage({ userProfile, navigateTo }: TestSelectionPage
   const handleStartTest = () => {
     if (selectedTest) {
       setShowDialog(false);
-      navigateTo('test-form', selectedTest);
+      navigateTo("test-form", selectedTest);
     }
   };
 
   const getTestInstruction = (testId: TestType) => {
     switch (testId) {
-      case 'riasec':
+      case "riasec":
         return t.riasecInstruction;
-      case 'values':
+      case "values":
         return t.valuesInstruction;
-      case 'personal':
+      case "personal":
         return t.personalInstruction;
       default:
-        return '';
+        return "";
     }
   };
 
   const getTestTitle = (testId: TestType) => {
     switch (testId) {
-      case 'riasec':
+      case "riasec":
         return t.riasecTitle;
-      case 'values':
+      case "values":
         return t.valuesTitle;
-      case 'personal':
+      case "personal":
         return t.personalTitle;
       default:
-        return '';
+        return "";
     }
   };
 
   const getTestDescription = (testId: TestType) => {
     switch (testId) {
-      case 'riasec':
+      case "riasec":
         return t.riasecDesc;
-      case 'values':
+      case "values":
         return t.valuesDesc;
-      case 'personal':
+      case "personal":
         return t.personalDesc;
       default:
-        return '';
+        return "";
     }
   };
 
@@ -232,10 +298,10 @@ export function TestSelectionPage({ userProfile, navigateTo }: TestSelectionPage
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="icon"
-              onClick={() => navigateTo('home')}
+              onClick={() => navigateTo("home")}
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -259,7 +325,7 @@ export function TestSelectionPage({ userProfile, navigateTo }: TestSelectionPage
           {tests.map((test) => {
             const Icon = test.icon;
             return (
-              <Card 
+              <Card
                 key={test.id}
                 className="cursor-pointer hover:shadow-xl transition-all border-2 border-transparent hover:border-opacity-50 group overflow-hidden"
                 style={{ borderColor: `transparent` }}
@@ -268,7 +334,9 @@ export function TestSelectionPage({ userProfile, navigateTo }: TestSelectionPage
                 <CardContent className="p-0">
                   <div className="flex flex-col md:flex-row">
                     {/* Icon Section */}
-                    <div className={`bg-gradient-to-br ${test.gradient} p-8 md:w-48 flex items-center justify-center`}>
+                    <div
+                      className={`bg-gradient-to-br ${test.gradient} p-8 md:w-48 flex items-center justify-center`}
+                    >
                       <Icon className="h-20 w-20 text-white" />
                     </div>
 
@@ -276,8 +344,12 @@ export function TestSelectionPage({ userProfile, navigateTo }: TestSelectionPage
                     <div className="flex-1 p-6">
                       <div className="flex items-start justify-between mb-3">
                         <div>
-                          <h3 className="text-gray-900 mb-2">{getTestTitle(test.id)}</h3>
-                          <p className="text-gray-600">{getTestDescription(test.id)}</p>
+                          <h3 className="text-gray-900 mb-2">
+                            {getTestTitle(test.id)}
+                          </h3>
+                          <p className="text-gray-600">
+                            {getTestDescription(test.id)}
+                          </p>
                         </div>
                         <ChevronRight className="h-6 w-6 text-gray-400 group-hover:text-gray-600 transition-colors shrink-0 ml-4" />
                       </div>
@@ -300,12 +372,8 @@ export function TestSelectionPage({ userProfile, navigateTo }: TestSelectionPage
 
         {/* Bottom Info */}
         <div className="mt-8 text-center">
-          <p className="text-gray-600 text-sm">
-            {t.allAssessments}
-          </p>
-          <p className="text-gray-500 text-sm mt-2">
-            {t.confidential}
-          </p>
+          <p className="text-gray-600 text-sm">{t.allAssessments}</p>
+          <p className="text-gray-500 text-sm mt-2">{t.confidential}</p>
         </div>
       </main>
 

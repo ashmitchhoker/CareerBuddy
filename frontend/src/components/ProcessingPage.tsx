@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Loader2, CheckCircle2, Brain, Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
@@ -16,7 +16,11 @@ import type {
 interface ProcessingPageProps {
   userProfile: UserProfile;
   setUserProfile: (profile: UserProfile) => void;
-  navigateTo: (page: Page, displayResults?: boolean) => void;
+  navigateTo: (
+    page: Page,
+    displayResults?: boolean,
+    assessmentId?: number
+  ) => void;
   selectedTest: TestType;
   allTestAnswers: { [testType: string]: { [key: number]: string | string[] } };
   testFlow: TestType[];

@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, ClipboardList, CheckCircle2, Loader2 } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { LanguageSelector } from './LanguageSelector';
-import { assessmentService } from '../services/assessmentService';
-import { toast } from 'sonner';
-import type { Page, UserProfile, Language } from '../App';
+import React, { useState, useEffect } from "react";
+import { ArrowLeft, ClipboardList, CheckCircle2, Loader2 } from "lucide-react";
+import { Button } from "./ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { LanguageSelector } from "./LanguageSelector";
+import { assessmentService } from "../services/assessmentService";
+import { toast } from "sonner";
+import type { Page, UserProfile, Language } from "../App";
 
 interface AssessmentResponsesPageProps {
   userProfile: UserProfile;
@@ -16,65 +16,65 @@ interface AssessmentResponsesPageProps {
 
 const translations = {
   en: {
-    title: 'Assessment Responses',
-    subtitle: 'Review your selected options',
-    backToHistory: 'Back to History',
-    riasecTest: 'RIASEC Personality Test',
-    valuesTest: 'Values & Motivation Test',
-    personalTest: 'Personal Information',
-    noData: 'Options selected will appear here',
-    noDataDesc: 'Your assessment responses are not available in demo mode'
+    title: "Assessment Responses",
+    subtitle: "Review your selected options",
+    backToHistory: "Back to History",
+    riasecTest: "RIASEC Personality Test",
+    valuesTest: "Values & Motivation Test",
+    personalTest: "Personal Information",
+    noData: "Options selected will appear here",
+    noDataDesc: "Your assessment responses are not available in demo mode",
   },
   hi: {
-    title: 'मूल्यांकन प्रतिक्रियाएं',
-    subtitle: 'अपने चयनित विकल्पों की समीक्षा करें',
-    backToHistory: 'इतिहास पर वापस जाएं',
-    riasecTest: 'RIASEC व्यक्तित्व परीक्षा',
-    valuesTest: 'मूल्य और प्रेरणा परीक्षा',
-    personalTest: 'व्यक्तिगत जानकारी',
-    noData: 'चयनित विकल्प यहां दिखाई देंगे',
-    noDataDesc: 'डेमो मोड में आपकी मूल्यांकन प्रतिक्रियाएं उपलब्ध नहीं हैं'
+    title: "मूल्यांकन प्रतिक्रियाएं",
+    subtitle: "अपने चयनित विकल्पों की समीक्षा करें",
+    backToHistory: "इतिहास पर वापस जाएं",
+    riasecTest: "RIASEC व्यक्तित्व परीक्षा",
+    valuesTest: "मूल्य और प्रेरणा परीक्षा",
+    personalTest: "व्यक्तिगत जानकारी",
+    noData: "चयनित विकल्प यहां दिखाई देंगे",
+    noDataDesc: "डेमो मोड में आपकी मूल्यांकन प्रतिक्रियाएं उपलब्ध नहीं हैं",
   },
   te: {
-    title: 'అసెస్‌మెంట్ ప్రతిస్పందనలు',
-    subtitle: 'మీరు ఎంచుకున్న ఎంపికలను సమీక్షించండి',
-    backToHistory: 'చరిత్రకు తిరిగి వెళ్ళు',
-    riasecTest: 'RIASEC వ్యక్తిత్వ పరీక్ష',
-    valuesTest: 'విలువలు మరియు ప్రేరణ పరీక్ష',
-    personalTest: 'వ్యక్తిగత సమాచారం',
-    noData: 'ఎంచుకున్న ఎంపికలు ఇక్కడ కనిపిస్తాయి',
-    noDataDesc: 'డెమో మోడ్‌లో మీ అసెస్‌మెంట్ ప్రతిస్పందనలు అందుబాటులో లేవు'
+    title: "అసెస్‌మెంట్ ప్రతిస్పందనలు",
+    subtitle: "మీరు ఎంచుకున్న ఎంపికలను సమీక్షించండి",
+    backToHistory: "చరిత్రకు తిరిగి వెళ్ళు",
+    riasecTest: "RIASEC వ్యక్తిత్వ పరీక్ష",
+    valuesTest: "విలువలు మరియు ప్రేరణ పరీక్ష",
+    personalTest: "వ్యక్తిగత సమాచారం",
+    noData: "ఎంచుకున్న ఎంపికలు ఇక్కడ కనిపిస్తాయి",
+    noDataDesc: "డెమో మోడ్‌లో మీ అసెస్‌మెంట్ ప్రతిస్పందనలు అందుబాటులో లేవు",
   },
   ta: {
-    title: 'மதிப்பீட்டு பதில்கள்',
-    subtitle: 'தேர்ந்தெடுத்த விருப்பங்களை மதிப்பாய்வு செய்யவும்',
-    backToHistory: 'வரலாற்றுக்குத் திரும்பு',
-    riasecTest: 'RIASEC ஆளுமை தேர்வு',
-    valuesTest: 'மதிப்புகள் மற்றும் உந்துதல் தேர்வு',
-    personalTest: 'தனிப்பட்ட தகவல்',
-    noData: 'தேர்ந்தெடுத்த விருப்பங்கள் இங்கே தோன்றும்',
-    noDataDesc: 'டெமோ பயன்முறையில் உங்கள் மதிப்பீட்டு பதில்கள் கிடைக்கவில்லை'
+    title: "மதிப்பீட்டு பதில்கள்",
+    subtitle: "தேர்ந்தெடுத்த விருப்பங்களை மதிப்பாய்வு செய்யவும்",
+    backToHistory: "வரலாற்றுக்குத் திரும்பு",
+    riasecTest: "RIASEC ஆளுமை தேர்வு",
+    valuesTest: "மதிப்புகள் மற்றும் உந்துதல் தேர்வு",
+    personalTest: "தனிப்பட்ட தகவல்",
+    noData: "தேர்ந்தெடுத்த விருப்பங்கள் இங்கே தோன்றும்",
+    noDataDesc: "டெமோ பயன்முறையில் உங்கள் மதிப்பீட்டு பதில்கள் கிடைக்கவில்லை",
   },
   bn: {
-    title: 'মূল্যায়ন প্রতিক্রিয়া',
-    subtitle: 'আপনার নির্বাচিত বিকল্পগুলি পর্যালোচনা করুন',
-    backToHistory: 'ইতিহাসে ফিরে যান',
-    riasecTest: 'RIASEC ব্যক্তিত্ব পরীক্ষা',
-    valuesTest: 'মূল্যবোধ এবং প্রেরণা পরীক্ষা',
-    personalTest: 'ব্যক্তিগত তথ্য',
-    noData: 'নির্বাচিত বিকল্পগুলি এখানে প্রদর্শিত হবে',
-    noDataDesc: 'ডেমো মোডে আপনার মূল্যায়ন প্রতিক্রিয়া উপলব্ধ নেই'
+    title: "মূল্যায়ন প্রতিক্রিয়া",
+    subtitle: "আপনার নির্বাচিত বিকল্পগুলি পর্যালোচনা করুন",
+    backToHistory: "ইতিহাসে ফিরে যান",
+    riasecTest: "RIASEC ব্যক্তিত্ব পরীক্ষা",
+    valuesTest: "মূল্যবোধ এবং প্রেরণা পরীক্ষা",
+    personalTest: "ব্যক্তিগত তথ্য",
+    noData: "নির্বাচিত বিকল্পগুলি এখানে প্রদর্শিত হবে",
+    noDataDesc: "ডেমো মোডে আপনার মূল্যায়ন প্রতিক্রিয়া উপলব্ধ নেই",
   },
   gu: {
-    title: 'મૂલ્યાંકન પ્રતિસાદ',
-    subtitle: 'તમારા પસંદ કરેલ વિકલ્પોની સમીક્ષા કરો',
-    backToHistory: 'ઇતિહાસ પર પાછા જાઓ',
-    riasecTest: 'RIASEC વ્યક્તિત્વ પરીક્ષા',
-    valuesTest: 'મૂલ્યો અને પ્રેરણા પરીક્ષા',
-    personalTest: 'વ્યક્તિગત માહિતી',
-    noData: 'પસંદ કરેલા વિકલ્પો અહીં દેખાશે',
-    noDataDesc: 'ડેમો મોડમાં તમારા મૂલ્યાંકન પ્રતિસાદ ઉપલબ્ધ નથી'
-  }
+    title: "મૂલ્યાંકન પ્રતિસાદ",
+    subtitle: "તમારા પસંદ કરેલ વિકલ્પોની સમીક્ષા કરો",
+    backToHistory: "ઇતિહાસ પર પાછા જાઓ",
+    riasecTest: "RIASEC વ્યક્તિત્વ પરીક્ષા",
+    valuesTest: "મૂલ્યો અને પ્રેરણા પરીક્ષા",
+    personalTest: "વ્યક્તિગત માહિતી",
+    noData: "પસંદ કરેલા વિકલ્પો અહીં દેખાશે",
+    noDataDesc: "ડેમો મોડમાં તમારા મૂલ્યાંકન પ્રતિસાદ ઉપલબ્ધ નથી",
+  },
 };
 
 interface TestResponse {
@@ -83,11 +83,11 @@ interface TestResponse {
   submitted_at: string | null;
 }
 
-export function AssessmentResponsesPage({ 
-  userProfile, 
-  setUserProfile, 
+export function AssessmentResponsesPage({
+  userProfile,
+  setUserProfile,
   navigateTo,
-  assessmentId 
+  assessmentId,
 }: AssessmentResponsesPageProps) {
   const t = translations[userProfile.language];
   const [responses, setResponses] = useState<TestResponse[]>([]);
@@ -104,8 +104,8 @@ export function AssessmentResponsesPage({
         const response = await assessmentService.getResponses(assessmentId);
         setResponses(response.data.test_responses || []);
       } catch (error: any) {
-        console.error('Error fetching responses:', error);
-        toast.error('Failed to load assessment responses');
+        console.error("Error fetching responses:", error);
+        toast.error("Failed to load assessment responses");
       } finally {
         setLoading(false);
       }
@@ -117,18 +117,18 @@ export function AssessmentResponsesPage({
   }, [assessmentId]);
 
   const testSections = [
-    { id: 'riasec', title: t.riasecTest, icon: ClipboardList },
-    { id: 'values', title: t.valuesTest, icon: ClipboardList },
-    { id: 'personal', title: t.personalTest, icon: ClipboardList }
+    { id: "riasec", title: t.riasecTest, icon: ClipboardList },
+    { id: "values", title: t.valuesTest, icon: ClipboardList },
+    { id: "personal", title: t.personalTest, icon: ClipboardList },
   ];
 
   const getTestTitle = (testType: string) => {
     switch (testType) {
-      case 'riasec':
+      case "riasec":
         return t.riasecTest;
-      case 'values':
+      case "values":
         return t.valuesTest;
-      case 'personal':
+      case "personal":
         return t.personalTest;
       default:
         return testType;
@@ -141,10 +141,10 @@ export function AssessmentResponsesPage({
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="icon"
-              onClick={() => navigateTo('assessment-history')}
+              onClick={() => navigateTo("assessment-history")}
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
@@ -152,7 +152,7 @@ export function AssessmentResponsesPage({
               <h2 className="text-gray-900">{t.title}</h2>
               <p className="text-gray-600 text-sm">{t.subtitle}</p>
             </div>
-            <LanguageSelector 
+            <LanguageSelector
               language={userProfile.language}
               onLanguageChange={handleLanguageChange}
             />
@@ -186,7 +186,9 @@ export function AssessmentResponsesPage({
                     {getTestTitle(testResponse.test_type)}
                     {testResponse.submitted_at && (
                       <span className="text-sm font-normal text-gray-500 ml-auto">
-                        {new Date(testResponse.submitted_at).toLocaleDateString()}
+                        {new Date(
+                          testResponse.submitted_at
+                        ).toLocaleDateString()}
                       </span>
                     )}
                   </CardTitle>
@@ -197,17 +199,19 @@ export function AssessmentResponsesPage({
                       .filter(([questionId, answer]) => {
                         // Filter out answers that look like chat messages or are empty
                         if (!answer) return false;
-                        const answerStr = Array.isArray(answer) ? answer.join(' ') : String(answer);
+                        const answerStr = Array.isArray(answer)
+                          ? answer.join(" ")
+                          : String(answer);
                         // Check if answer contains chatbot greeting phrases
                         const chatPhrases = [
-                          'great job on the assessment',
-                          'career paths for you',
-                          'exciting career paths',
-                          'Based on your results',
-                          'Hey',
-                          'free to ask me any questions'
+                          "great job on the assessment",
+                          "career paths for you",
+                          "exciting career paths",
+                          "Based on your results",
+                          "Hey",
+                          "free to ask me any questions",
                         ];
-                        const isChatMessage = chatPhrases.some(phrase => 
+                        const isChatMessage = chatPhrases.some((phrase) =>
                           answerStr.toLowerCase().includes(phrase.toLowerCase())
                         );
                         return !isChatMessage && answerStr.trim().length > 0;
@@ -215,15 +219,21 @@ export function AssessmentResponsesPage({
                       .map(([questionId, answer]) => {
                         // Clean up the answer - remove any chat message content
                         let cleanAnswer = answer;
-                        if (typeof answer === 'string') {
+                        if (typeof answer === "string") {
                           // Remove chat greeting if it's appended
-                          const chatGreetingPattern = /(?:Hey\s+[^,]+,?\s*)?(?:Grade:\s*\w+,?\s*)?(?:Age:\s*\d+,?\s*)?(?:great job on the assessment[^]*?career paths[^]*?)/i;
-                          cleanAnswer = answer.replace(chatGreetingPattern, '').trim();
+                          const chatGreetingPattern =
+                            /(?:Hey\s+[^,]+,?\s*)?(?:Grade:\s*\w+,?\s*)?(?:Age:\s*\d+,?\s*)?(?:great job on the assessment[^]*?career paths[^]*?)/i;
+                          cleanAnswer = answer
+                            .replace(chatGreetingPattern, "")
+                            .trim();
                           // If answer is empty after cleaning, use original
                           if (!cleanAnswer) cleanAnswer = answer;
                         }
                         return (
-                          <div key={questionId} className="border-l-4 border-blue-500 pl-4 py-2">
+                          <div
+                            key={questionId}
+                            className="border-l-4 border-blue-500 pl-4 py-2"
+                          >
                             <p className="text-sm font-medium text-gray-700 mb-1">
                               Question {questionId}
                             </p>

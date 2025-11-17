@@ -1,6 +1,13 @@
-import { Globe } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import type { Language } from '../App';
+import React from "react";
+import { Globe } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import type { Language } from "../App";
 
 interface LanguageSelectorProps {
   language: Language;
@@ -8,15 +15,18 @@ interface LanguageSelectorProps {
 }
 
 const languages = {
-  en: 'English',
-  hi: 'हिंदी',
-  te: 'తెలుగు',
-  ta: 'தமிழ்',
-  bn: 'বাংলা',
-  gu: 'ગુજરાતી'
+  en: "English",
+  hi: "हिंदी",
+  te: "తెలుగు",
+  ta: "தமிழ்",
+  bn: "বাংলা",
+  gu: "ગુજરાતી",
 };
 
-export function LanguageSelector({ language, onLanguageChange }: LanguageSelectorProps) {
+export function LanguageSelector({
+  language,
+  onLanguageChange,
+}: LanguageSelectorProps) {
   return (
     <Select value={language} onValueChange={onLanguageChange}>
       <SelectTrigger className="w-[140px]">
