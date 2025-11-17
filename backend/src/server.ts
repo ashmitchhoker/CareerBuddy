@@ -23,7 +23,30 @@ import profileRoutes from './routes/profile';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Eagerly initialize RAG service on server startup (in background)
+// This preloads the Python process, embeddings model, and ChromaDB
+// so it's ready when users need it (no wait time on first request)
+// Import happens inside async function to avoid circular dependency
+async function initializeRAGService() {
+  try {
+    console.log('🚀 Starting RAG service initialization in background...');
+    const { getRAGService } = await import('./routes/chat');
+    const ragService = getRAGService();
+    await ragService.initialize();
+    console.log('✅ RAG service preloaded successfully - ready for instant responses!');
+  } catch (err: any) {
+    console.error('⚠️  RAG service preload failed (will lazy load on first use):', err.message);
+  }
+}
+
+// Start initialization in background (don't await - let it run parallel to server startup)
+initializeRAGService();
+
 // Middleware
+// CRITICAL: Parse JSON with UTF-8 encoding to support Hindi/Telugu/etc.
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 app.use(
   cors({
     origin: function (origin, callback) {
